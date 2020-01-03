@@ -20,24 +20,8 @@ SUM=$(md5sum $TARGET | awk '{print $1}')
 
 [ -n "$SUM" ] || error "unable to checksum $TARGET"
 
-case $SUM in
-  30b53c84508cdb01aa3b1057a4ccebee) B64PATCH="
-      OTksMTAzZDk4CjwgICBpZiBbICIkUk9PVF9QQVJUX05VTSIgLW5lICIkTEFTVF9Q
-      QVJUX05VTSIgXTsgdGhlbgo8ICAgICBGQUlMX1JFQVNPTj0iUm9vdCBwYXJ0aXRp
-      b24gc2hvdWxkIGJlIGxhc3QgcGFydGl0aW9uIgo8ICAgICByZXR1cm4gMQo8ICAg
-      ZmkKPCAKMTI4YTEyNCwxMzkKPiAKPiAgIGZvciBQQVJUX0JFR0lOIGluICQoZWNo
-      byAiJFBBUlRJVElPTl9UQUJMRSIgfCBlZ3JlcCAnXlswLTldOicgfCBhd2sgLUY6
-      ICd7cHJpbnQgJDJ9JykKPiAgIGRvCj4gICAgIGlmIFsgJFBBUlRfQkVHSU4gLWd0
-      ICRST09UX1BBUlRfRU5EIF0gJiYgWyAkUEFSVF9CRUdJTiAtbHQgJFRBUkdFVF9F
-      TkQgXQo+ICAgICB0aGVuCj4gICAgICAgVEFSR0VUX0VORD0kKCgkUEFSVF9CRUdJ
-      TiAtIDEpKQo+ICAgICBmaQo+ICAgZG9uZQo+IAo+ICAgZm9yIFBBUlRfQkVHSU4g
-      aW4gJChlY2hvICIkUEFSVElUSU9OX1RBQkxFIiB8IGVncmVwICdeWzAtOV06JyB8
-      IGF3ayAtRjogJ3twcmludCAkMn0nKQo+ICAgZG8KPiAgICAgaWYgWyAkUEFSVF9C
-      RUdJTiAtZ3QgJFJPT1RfUEFSVF9FTkQgXSAmJiBbICRQQVJUX0JFR0lOIC1sdCAk
-      VEFSR0VUX0VORCBdCj4gICAgIHRoZW4KPiAgICAgICBUQVJHRVRfRU5EPSQoKCRQ
-      QVJUX0JFR0lOIC0gMSkpCj4gICAgIGZpCj4gICBkb25lCg==" ;;
-esac
+PATCHDIR=$(dirname $0)/init_resize_patch.d
 
-[ -n "$B64PATCH" ] || error "unknown version of $TARGET with checksum: $SUM"
+[ -e "$PATCHDIR/$SUM.patch" ] || error "No patchfile $SUM.patch found in $PATCHDIR"
 
-echo "$B64PATCH" | base64 --decode | patch /usr/lib/raspi-config/init_resize.sh
+patch /usr/lib/raspi-config/init_resize.sh < $PATCHDIR/$SUM.patch
