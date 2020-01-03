@@ -16,7 +16,7 @@ error () {
 }       
 
 TARGET="/usr/lib/raspi-config/init_resize.sh"
-SUM=$(md5sum $TARGET)
+SUM=$(md5sum $TARGET | awk '{print $1}')
 
 [ -n "$SUM" ] || error "unable to checksum $TARGET"
 
@@ -40,4 +40,4 @@ esac
 
 [ -n "$B64PATCH" ] || error "unknown version of $TARGET with checksum: $SUM"
 
-echo $PATCH | base64 --decode | patch /usr/lib/raspi-config/init_resize.sh
+echo "$B64PATCH" | base64 --decode | patch /usr/lib/raspi-config/init_resize.sh
