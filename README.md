@@ -44,7 +44,7 @@ That's how I typically run the build. Specifically, I do:
     
 It does the following:
 1) Installs the Raspbian zip file to the SD card. Variables at the top of this script specify the Raspbian image location and checksum. The SD card is auto-detected (on my MacBook, anyway).
-2) Sets aside the original `cmdline.txt` file for restoration by `01_restore_kcl_file.sh`
+2) Sets aside the original `cmdline.txt` as `cmdline.txt.orig`  for restoration by `01_restore_kcl_file.sh`
 3) Builds and installs the `go-init` binary (tested with go1.13.4)
 4) Copies the contents of `copy_to_sd_card/` to the SD card's `/boot` partition. This includes the temporary `cmdline.txt` file and the scripts in `go-init.d`
 5) Adds additional partitions as needed (see `P[34]SIZE` and `P[34]LABEL` variables) to the end of the SD card.
