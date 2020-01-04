@@ -34,11 +34,11 @@ The `01_restore_kcl_file.sh` script replaces `cmdline.txt` with `cmdline.txt.ori
 
 Add additional scripts here to make the Pi do whatever you need (install packages, drop startup scripts in place, etc...)
 
-## Okay, but the `boot` filesystem is too small!
-Yeah. That's a problem, and was the genesis of this whole project. By default, Raspian's first boot calls `/usr/lib/raspi-config/init_resize.sh` to stretch the root partition/filesystem, and it throws an error if you've added extra partitions. So, on the *actual* first boot, `go-init.d/02_patch_init_resize.sh` modifies Raspbian's `init_resize.sh` to adjust its expectations about `/root` growing all the way to the end of the SD card. With that change we can add extra partitions to the end of the SD card during the intial setup. Our appliance software can then live there. The `build.sh` script includes some variables that control the size and labels of those filesystems.
+## Okay, but the `/boot` filesystem is too small to use for anything!
+Yeah. That's a problem, and was the genesis of this whole project. I'd wanted to add an extra filesystem for my project files at the unused (the Rasbian image is only ~4GB, so a freshly-written 32GB SD card is mostly empty) far end of the SD card. By default, Raspian's first boot calls `/usr/lib/raspi-config/init_resize.sh` to stretch the root partition/filesystem, and it throws an error if you've added extra partitions. So, on the *actual* first boot, `go-init.d/02_patch_init_resize.sh` modifies Raspbian's `init_resize.sh` to adjust its expectations about `/root` growing all the way to the end of the SD card. With that change we can add extra partitions to freshly-imaged/never-booted SD card. The appliance software can then live there. The `build.sh` script includes some variables that control the size and labels of those filesystems.
 
 ## What's `build.sh` do?
-That's how I typically run the build. Specifically, I do:
+Run it to install Raspbian and all of the needed changes:
 
     sudo ./build.sh
     
