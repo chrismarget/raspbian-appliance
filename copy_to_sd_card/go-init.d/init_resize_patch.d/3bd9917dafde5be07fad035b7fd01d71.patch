@@ -1,0 +1,23 @@
+99,103d98
+<   if [ "$ROOT_PART_NUM" -ne "$LAST_PART_NUM" ]; then
+<     FAIL_REASON="Root partition should be last partition"
+<     return 1
+<   fi
+< 
+128a124,139
+> 
+>   for PART_BEGIN in $(echo "$PARTITION_TABLE" | egrep '^[0-9]:' | awk -F: '{print $2}')
+>   do
+>     if [ $PART_BEGIN -gt $ROOT_PART_END ] && [ $PART_BEGIN -lt $TARGET_END ]
+>     then
+>       TARGET_END=$(($PART_BEGIN - 1))
+>     fi
+>   done
+> 
+>   for PART_BEGIN in $(echo "$PARTITION_TABLE" | egrep '^[0-9]:' | awk -F: '{print $2}')
+>   do
+>     if [ $PART_BEGIN -gt $ROOT_PART_END ] && [ $PART_BEGIN -lt $TARGET_END ]
+>     then
+>       TARGET_END=$(($PART_BEGIN - 1))
+>     fi
+>   done
