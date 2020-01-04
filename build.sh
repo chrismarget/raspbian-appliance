@@ -6,7 +6,8 @@ IMAGE=~/Downloads/2018-03-13-raspbian-stretch.zip
 SHA256SUM=d6d64a8bfad37de6bc7d975a335c69b8c6164a33b1ef0c79c888a9b83db5063f
 
 # Specify desired size (512-byte blocks) and volume label of new partitions
-# 3 and 4.  Set size to 0 if additional partion(s) not needed.
+# 3 and 4.  Set size to 0 if additional partion(s) not needed. Sizes less than
+# about 66700 blocks seem to be too small for a fat32 filesystem.
 P3SIZE=200000
 P3LABEL=PART3
 P4SIZE=66700
