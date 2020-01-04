@@ -2,14 +2,14 @@
 Tooling for building Raspberry Pi appliances based on Raspbian
 
 ## What?
-This a minimal set of software to turn a Raspbian image file into an SD card prepped for a particular purpose (an appliance) on Mac OSX.
+This a minimal set of software to turn a Raspbian image file into an SD card prepped for a particular purpose (an appliance) on Mac OSX. Thus far tested only with 2018-03-13-raspbian-stretch.
 
 ## Why?
 First, Raspbian makes some unfortunate assumptions like:
-- The root filesystem is going to be the last one on the SD card, and it should be immediately stretched to fill the entire disk on first boot.
+- The root filesystem is going to occupy the last partition on the SD card, and that partition should immediately be stretched to fill the entire disk on first boot.
 - Any customization the end user might be interested in doing will be accomplished manually either via SSH or with a monitor and keyboard.
 
-Second, it's not very easy to interact with the SD card's root filesystem from a MacBook. The only filesystem we can touch is `/boot`, and there's not much you can do from there. There are ext4 drivers that make this possible, but I'm trying to make this easy to consume.
+Second, it's not very easy to interact with the SD card's root filesystem from a MacBook. The only filesystem we can touch is `/boot`, and there's not much you can do from there. There are ext4 drivers that make it possible to modify `/`, but the toolchain quickly spirals out of control and I'm trying to make this easy to consume.
 
 Third, I want to make appliance images that start with the trusted (for some meanings of that term) Raspbian image, rather than delivering (and requiring end users to trust) a large binary image that I might produce.
 
@@ -27,7 +27,7 @@ Roughly speaking, the process looks like this:
 ## What does go-init do?
 `go-init` does exactly 3 things:
 1) Mounts the `/` and `/boot` filesystems in their usual locations.
-2) Runs all the shell scripts found in `/boot/go-init.d/*.sh`. That's the VFAT filesystem that Mac OSX can see and change. Those files live in `copy_to_sd_card/go-init.d/` within this project. They're run in lexical sort order and must be named with the `.sh` suffix.
+2) Runs all the shell scripts found in `/boot/go-init.d/*.sh`. On the SD card, these files live on the VFAT filesystem which Mac OSX can see and change. Within this project, these files live in `copy_to_sd_card/go-init.d/`. `go-init` runs them in lexical sort order and they must be named with the `.sh` suffix.
 3) Cleanly unmounts the filesystems and reboots the Pi.
 
 The `01_restore_kcl_file.sh` script replaces `cmdline.txt` with `cmdline.txt.orig` (the original Raspbian file is saved there by `build.sh`), restoring normal system behavior. Without that step, go-init would run in an eternal reboot loop.
