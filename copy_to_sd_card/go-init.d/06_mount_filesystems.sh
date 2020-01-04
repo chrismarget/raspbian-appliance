@@ -2,7 +2,7 @@
 
 mount -t proc proc /proc
 mount -t sysfs sys /sys
-
+mount -t devtmpfs devtmpfs /dev
 
 ROOT_PART_DEV=$(findmnt / -o source -n)
 ROOT_PART_NAME=$(echo "$ROOT_PART_DEV" | awk -F '/' '{print $NF}')
@@ -10,15 +10,23 @@ ROOT_DEV_NAME=$(echo /sys/block/*/"${ROOT_PART_NAME}" | cut -d "/" -f 4)
 ROOT_DEV="/dev/${ROOT_DEV_NAME}"
 DISKID="$(fdisk -l "$ROOT_DEV" | sed -n 's/Disk identifier: 0x\([^ ]*\)/\1/p')"
 
-IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -l $ROOT_DEV | egrep "^$ROOT_DEV" | awk '{print $1}')
-IFS=$'\n' read -d '' -r -a MOUNTED < <(mount | grep $ROOT_DEV | awk '{print $1}')
+PARTS=()
+for p in $(fdisk -l $ROOT_DEV | egrep "^$ROOT_DEV" | awk '{print $1}')
+do
+  PARTS+=($(basename $p))
+done
+
+MOUNTED=()
+for m in $(mount | grep $ROOT_DEV | awk '{print $1}')
+do
+  MOUNTED+=($(basename $m))
+done
 
 UNMOUNTED=()
-
 for p in ${PARTS[@]}
 do
   echo ${MOUNTED[@]} | tr ' ' '\n' | egrep "^$p$"
-  [ $? -ne 0 ] && UNMOUNTED+=$p
+  [ $? -ne 0 ] && UNMOUNTED+=($p)
 done
 
 for p in ${UNMOUNTED[@]}
@@ -29,15 +37,15 @@ do
   set $(parted $ROOT_DEV print | egrep "^ $pnum ")
   TYPE=$6
   [ "$TYPE" == "fat32" ] && TYPE=vfat
-  MOUNTPOINT="/mnt/$(fatlabel $p)"
+  LABEL="$(fatlabel /dev/$p)"
+  [ -z "$LABEL" ] && continue
+  MOUNTPOINT="/opt/$(fatlabel /dev/$p)"
   mkdir -p $MOUNTPOINT
   FSTAB="PARTUUID=$PARTUUID $MOUNTPOINT $TYPE defaults 0 2"
   echo "$FSTAB" >> /etc/fstab
 done
 
 
-IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $raw_dev)
-
-
+umount /dev
 umount /proc
 umount /sys
