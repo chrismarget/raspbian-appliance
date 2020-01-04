@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"golang.org/x/sys/unix"
 	"io/ioutil"
 	"log"
@@ -32,19 +31,19 @@ func main() {
 	log.Println("Mounting filesystems...")
 	err = mountFileSystems()
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatalf("mountFileSystems failed: %s", err.Error())
 	}
 
 	log.Printf("Running init scripts in %s...", filepath.Join(bootPath, os.Args[0]+initDirSuffix))
 	err = runParts(filepath.Join(bootPath, os.Args[0]+initDirSuffix))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("runParts failed: %s", err.Error())
 	}
 
 	log.Println("Unmounting filesystems...")
 	err = unMountFileSystems()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("unMountFileSystems failed: %s", err.Error())
 	}
 
 	_ = syscall.Reboot(syscall.LINUX_REBOOT_CMD_RESTART)
@@ -96,7 +95,12 @@ func mountFileSystems() error {
 	}
 
 	log.Printf("    Pivoting root and boot filesystems into place...")
-	return unix.PivotRoot(rootMnt, rootMnt+bootPath)
+	err = unix.PivotRoot(rootMnt, rootMnt+bootPath)
+	if err != nil {
+		return err
+	}
+
+    return nil
 }
 
 func runParts(dir string) error {
@@ -114,23 +118,22 @@ func runParts(dir string) error {
 	sort.Strings(scripts)
 	for _, s := range scripts {
 		s = filepath.Join(dir, s)
+		log.Printf("    Running %s", s)
 		cmd := exec.Command(s)
-		var stdout bytes.Buffer
-		cmd.Stdout = &stdout
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err = cmd.Run()
 		if err != nil {
+			log.Printf("%s produced an error.\n", s)
 			return err
 		}
-		log.Println("\nvvvv %s STDOUT vvvv\n%s\n^^^^ %s STDOUT", s, stdout, s)
-		log.Println("\nvvvv %s STDERR vvvv\n%s\n^^^^ %s STDERR", s, stderr, s)
 	}
 	return nil
 }
 
 func unMountFileSystems() error {
 	var err error
+
 	log.Printf("    Pivoting SD card partitions back to their original mount points...")
 	err = unix.PivotRoot(bootPath, filepath.Join(bootPath, rootMnt))
 	if err != nil {
