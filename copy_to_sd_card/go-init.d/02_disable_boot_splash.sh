@@ -1,4 +1,3 @@
 #!/bin/sh
 
-/usr/bin/raspi-config nonint do_boot_splash 1
-exit 0
+sed -i -e 's/ splash//' -e 's/ quiet//' /boot/cmdline.txt
