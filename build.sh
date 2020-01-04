@@ -9,7 +9,7 @@ SHA256SUM=d6d64a8bfad37de6bc7d975a335c69b8c6164a33b1ef0c79c888a9b83db5063f
 # 3 and 4.  Set size to 0 if additional partion(s) not needed.
 P3SIZE=200000
 P3LABEL=PART3
-P4SIZE=100000
+P4SIZE=500
 P4LABEL=PART4
 
 # Set paths relevant to this project.
@@ -48,11 +48,9 @@ BOOT_MNT=$(mount | grep ${BSD_NAME}s1 | awk '{print $3}')
 [ -n "$BOOT_MNT"  ] || echo "device not mounted after imaging"
 [ -n "$BOOT_MNT"  ] || exit 3
 
-# Save the original cmdline.txt file (but not the 'quiet' and 'splash'
-# directives) for later reinstallation. We'll be deploying a temporary
-# version of this file that calls go-init.
-KCL_FILE=${BOOT_MNT}/cmdline.txt
-sed -e 's/ quiet//' -e 's/ splash//' $KCL_FILE > ${KCL_FILE}.orig
+# Save the original cmdline.txt file for later reinstallation. We'll be
+# deploying a temporary version of this file that calls go-init.
+cp ${BOOT_MNT}/cmdline.txt ${BOOT_MNT}/cmdline.txt.orig
 
 # Build the go-init binary.
 GOOS=linux GOARCH=arm GOARM=5 go build -o ${BOOT_MNT}/go-init go-init/main.go
