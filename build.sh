@@ -2,8 +2,17 @@
 
 # Specify rasbian image file and checksum (both found on
 # https://downloads.raspberrypi.org/raspbian/images).
-IMAGE=~/Downloads/2018-03-13-raspbian-stretch.zip
-SHA256SUM=d6d64a8bfad37de6bc7d975a335c69b8c6164a33b1ef0c79c888a9b83db5063f
+#IMAGE=~/Downloads/2018-03-13-raspbian-stretch.zip
+#SHA256SUM=d6d64a8bfad37de6bc7d975a335c69b8c6164a33b1ef0c79c888a9b83db5063f
+
+#IMAGE=~/Downloads/2018-03-13-raspbian-stretch-lite.zip
+#SHA256SUM=d58b4bd15e53380b8627df49b26ff7ccd80fc5d424a5cafe48a83fee58fc7047
+
+IMAGE=~/Downloads/2019-09-26-raspbian-buster-lite.zip
+SHA256SUM=a50237c2f718bd8d806b96df5b9d2174ce8b789eda1f03434ed2213bbca6c6ff
+
+#IMAGE=~/Downloads/2019-09-26-raspbian-buster.zip
+#SHA256SUM=2c4067d59acf891b7aa1683cb1918da78d76d2552c02749148d175fa7f766842
 
 # Specify desired size (512-byte blocks) and volume label of new partitions
 # 3 and 4.  Set size to 0 if additional partion(s) not needed. Sizes less than
@@ -39,7 +48,7 @@ blk_dev=/dev/$BSD_NAME
 raw_dev=/dev/r$BSD_NAME
 
 # Write the image to the SD card.
-diskutil umountDisk $BSD_NAME
+diskutil umountDisk force $BSD_NAME
 unzip -p $IMAGE | dd obs=512k of=$raw_dev
 
 # The VFAT component (/boot) of the raspbian image
@@ -60,7 +69,7 @@ GOOS=linux GOARCH=arm GOARM=5 go build -o ${BOOT_MNT}/go-init go-init/main.go
 # right now (cmdline.txt and go-init) plus the tar file that will be unrolled
 # onto the ext4 filesystem by go-init. Then unmount the disk.
 (cd $FILES4BOOT; tar cLf - .) | (cd $BOOT_MNT; tar xf -)
-diskutil umountDisk $BSD_NAME
+diskutil umountDisk force $BSD_NAME
 
 # Exit here if additional partitions aren't needed.
 [ $P3SIZE -ne 0 ] || [ $P4SIZE -ne 0 ] || exit
@@ -80,11 +89,11 @@ MBR_ID=$(dd if=$blk_dev bs=1 skip=440 count=4)
 
 
 echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $raw_dev
-mount_wait $BSD_NAME
-diskutil umountDisk $BSD_NAME
+mount_wait ${BSD_NAME}s1
+diskutil umountDisk force $BSD_NAME
 echo -n $MBR_ID | sudo dd of=$blk_dev bs=1 seek=440
 mount_wait $BSD_NAME
-diskutil umountDisk $BSD_NAME
+diskutil umountDisk force $BSD_NAME
 
 # Add new partitions 3 and 4
 if [ $P3SIZE -gt 0 ]
@@ -99,4 +108,4 @@ then
   newfs_msdos -F 32 $VOLOPT ${BSD_NAME}s4
 fi
 
-diskutil umountDisk $BSD_NAME
+diskutil umountDisk force $BSD_NAME
