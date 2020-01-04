@@ -9,7 +9,7 @@ SHA256SUM=d6d64a8bfad37de6bc7d975a335c69b8c6164a33b1ef0c79c888a9b83db5063f
 # 3 and 4.  Set size to 0 if additional partion(s) not needed.
 P3SIZE=200000
 P3LABEL=PART3
-P4SIZE=500
+P4SIZE=66700
 P4LABEL=PART4
 
 # Set paths relevant to this project.
@@ -79,6 +79,8 @@ MBR_ID=$(dd if=$blk_dev bs=1 skip=440 count=4)
 
 
 echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $raw_dev
+mount_wait $BSD_NAME
+diskutil umountDisk $BSD_NAME
 echo -n $MBR_ID | sudo dd of=$blk_dev bs=1 seek=440
 mount_wait $BSD_NAME
 diskutil umountDisk $BSD_NAME
