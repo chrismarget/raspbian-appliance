@@ -25,7 +25,7 @@ done
 UNMOUNTED=()
 for p in ${PARTS[@]}
 do
-  echo ${MOUNTED[@]} | tr ' ' '\n' | egrep "^$p$"
+  echo ${MOUNTED[@]} | tr ' ' '\n' | egrep -q "^$p$"
   [ $? -ne 0 ] && UNMOUNTED+=($p)
 done
 
