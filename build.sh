@@ -54,7 +54,7 @@ unzip -p $IMAGE | dd obs=512k of=$raw_dev
 # The VFAT component (/boot) of the raspbian image
 # should mount automatically. Find it.
 mount_wait ${BSD_NAME}s1
-BOOT_MNT=$(mount | grep ${BSD_NAME}s1 | awk '{print $3}')
+export BOOT_MNT=$(mount | grep ${BSD_NAME}s1 | awk '{print $3}')
 [ -n "$BOOT_MNT"  ] || echo "device not mounted after imaging"
 [ -n "$BOOT_MNT"  ] || exit 3
 
@@ -107,5 +107,10 @@ then
   [ -n "$P4LABEL" ] && VOLOPT="-v $P4LABEL" || VOLOPT=""
   newfs_msdos -F 32 $VOLOPT ${BSD_NAME}s4
 fi
+
+for i in $(dirname $0)/custom.d/*sh
+do
+  [ -e $i ] && $i
+done
 
 diskutil umountDisk force $BSD_NAME
