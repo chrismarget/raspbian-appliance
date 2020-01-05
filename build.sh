@@ -22,6 +22,8 @@ P3LABEL=PART3
 P4SIZE=66700
 P4LABEL=PART4
 
+export P3LABEL P4LABEL
+
 # Set paths relevant to this project.
 FILES4BOOT=copy_to_sd_card
 
@@ -100,13 +102,17 @@ if [ $P3SIZE -gt 0 ]
 then
   [ -n "$P3LABEL" ] && VOLOPT="-v $P3LABEL" || VOLOPT=""
   newfs_msdos -F 32 $VOLOPT ${BSD_NAME}s3
+  export P3_MNT=$(mount | grep ${BSD_NAME}s3 | awk '{print $3}')
 fi
 
 if [ $P4SIZE -gt 0 ]
 then
   [ -n "$P4LABEL" ] && VOLOPT="-v $P4LABEL" || VOLOPT=""
   newfs_msdos -F 32 $VOLOPT ${BSD_NAME}s4
+  export P4_MNT=$(mount | grep ${BSD_NAME}s4 | awk '{print $3}')
 fi
+
+diskutil mountDisk disk3
 
 for i in $(dirname $0)/custom.d/*sh
 do
