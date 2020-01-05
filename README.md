@@ -2,7 +2,7 @@
 Tooling for building Raspberry Pi appliances based on Raspbian
 
 ## What?
-This a minimal set of software to turn a Raspbian image file into an SD card prepped for a particular purpose (an appliance) on Mac OSX. Thus far tested only with 2018-03-13-raspbian-stretch.
+This a minimal set of software to turn a Raspbian image file into an SD card prepped for a particular purpose (an appliance) on Mac OSX. Thus far tested only with 2018-03-13-raspbian-stretch and 2019-09-26-raspbian-buster (normal and lite versions of each.)
 
 ## Why?
 First, Raspbian makes some unfortunate assumptions like:
