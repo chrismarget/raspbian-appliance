@@ -46,11 +46,11 @@ get_options() {
   [ -z "$IMAGE" ] && error 'must specify Raspbian image with "-i <filename.zip>"'
   [ $P3SIZE -eq 0 ] && [ -n "$P3LABEL" ] && error "partition 3 label specified for zero-length filesystem"
   [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL" ] && error "partition 4 label specified for zero-length filesystem"
-  ([ -z "$P3LABEL" ] || check_8.3 $P3LABEL) || error "label $P3LABEL must be DOS 8.3 format"
-  ([ -z "$P4LABEL" ] || check_8.3 $P4LABEL) || error "label $P4LABEL must be DOS 8.3 format"
+  ([ -z "$P3LABEL" ] || check_dos_8.3 $P3LABEL) || error "label $P3LABEL must be DOS 8.3 format"
+  ([ -z "$P4LABEL" ] || check_dos_8.3 $P4LABEL) || error "label $P4LABEL must be DOS 8.3 format"
 }
 
-check_8.3 () {
+check_dos_8.3 () {
   if [[ "$1" =~ "." ]]
   then
     [[ "$1" =~ ^[a-zA-Z0-9]{1,8}.[a-zA-Z0-9]{1,3}$ ]] || return 1
