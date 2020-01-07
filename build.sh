@@ -32,17 +32,17 @@ get_options() {
       3 )
         P3LABEL=$(expr "$OPTARG" : '.*:\(.*\)')
         P3SIZE=$(expr "$OPTARG" : '\([^:]*\)')
-        P3SIZE=${P3SIZE:-0}
         ;;
       4 )
         P4LABEL=$(expr "$OPTARG" : '.*:\(.*\)')
         P4SIZE=$(expr "$OPTARG" : '\([^:]*\)')
-        P4SIZE=${P4SIZE:-0}
         ;;
       * )
         error "parsing options"
     esac
   done
+  P3SIZE=${P3SIZE:-0}
+  P4SIZE=${P4SIZE:-0}
   [ -z "$IMAGE" ] && error 'must specify Raspbian image with "-i <filename.zip>"'
   [ $P3SIZE -eq 0 ] && [ -n "$P3LABEL" ] && error "partition 3 label specified for zero-length filesystem"
   [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL" ] && error "partition 4 label specified for zero-length filesystem"
