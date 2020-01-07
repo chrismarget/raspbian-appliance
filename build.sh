@@ -48,6 +48,9 @@ get_options() {
   [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL" ] && error "partition 4 label specified for zero-length filesystem"
   ([ -z "$P3LABEL" ] || check_dos_8.3 $P3LABEL) || error "label $P3LABEL must be DOS 8.3 format"
   ([ -z "$P4LABEL" ] || check_dos_8.3 $P4LABEL) || error "label $P4LABEL must be DOS 8.3 format"
+  [ "$P3LABEL" == "$P4LABEL" ] && [ -n "$P3LABEL" ] && error "don't use the same filesystem label twice"
+  [ "$(echo $P3LABEL | tr 'A-Z' 'a-z')" == "boot" ] && error "don't name a filesystem 'boot'"
+  [ "$(echo $P4LABEL | tr 'A-Z' 'a-z')" == "boot" ] && error "don't name a filesystem 'boot'"
 }
 
 check_dos_8.3 () {
