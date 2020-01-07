@@ -186,12 +186,12 @@ main () {
   export BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
   [ -n "$BOOT_MNT"  ] || echo "${BLK_DEV}s1 device not mounted after imaging"
 
-  # Copy scripts and whatnot to the /boot partition
-  (cd $(dirname $0)/copy_to_sd_card && tar cLf - .) | (cd $BOOT_MNT; tar xf -)
-
   # Save the original cmdline.txt file for later reinstallation. We'll be
   # deploying a temporary version of this file that calls go-init.
   cp ${BOOT_MNT}/cmdline.txt ${BOOT_MNT}/cmdline.txt.orig
+
+  # Copy scripts and whatnot to the /boot partition
+  (cd $(dirname $0)/copy_to_sd_card && tar cLf - .) | (cd $BOOT_MNT; tar xf -)
 
   # Build the go-init binary, copy it to the SD card
   GOOS=linux GOARCH=arm GOARM=5 go build -o ${BOOT_MNT}/go-init go-init/main.go
