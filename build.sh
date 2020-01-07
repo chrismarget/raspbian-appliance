@@ -1,122 +1,194 @@
 #!/bin/bash
 
-# Specify rasbian image file and checksum (both found on
-# https://downloads.raspberrypi.org/raspbian/images).
-#IMAGE=~/Downloads/2018-03-13-raspbian-stretch.zip
-#SHA256SUM=d6d64a8bfad37de6bc7d975a335c69b8c6164a33b1ef0c79c888a9b83db5063f
-
-#IMAGE=~/Downloads/2018-03-13-raspbian-stretch-lite.zip
-#SHA256SUM=d58b4bd15e53380b8627df49b26ff7ccd80fc5d424a5cafe48a83fee58fc7047
-
-IMAGE=~/Downloads/2019-09-26-raspbian-buster-lite.zip
-SHA256SUM=a50237c2f718bd8d806b96df5b9d2174ce8b789eda1f03434ed2213bbca6c6ff
-
-#IMAGE=~/Downloads/2019-09-26-raspbian-buster.zip
-#SHA256SUM=2c4067d59acf891b7aa1683cb1918da78d76d2552c02749148d175fa7f766842
-
-# Specify desired size (512-byte blocks) and volume label of new partitions
-# 3 and 4.  Set size to 0 if additional partion(s) not needed. Sizes less than
-# about 66700 blocks seem to be too small for a fat32 filesystem.
-P3SIZE=200000
-P3LABEL=PART3
-P4SIZE=66700
-P4LABEL=PART4
-
-export P3LABEL P4LABEL
-
-# Set paths relevant to this project.
-FILES4BOOT=copy_to_sd_card
+error() {
+  echo "error: $1"
+  exit 1
+}
 
 mount_wait () {
-  tries=100
-  while [ $tries -ge 0 ] && [ "$(mount | grep $1)" == "" ]
+  tries=10
+  while [ $tries -gt 0 ] && ! mount | egrep -q "^[^ ]*$1 "
   do
     sleep .1
     ((tries=$tries-1))
   done
-  return $tries
+  [ $tries -eq 0 ] && return 1
+  return 0
 }
 
-# Validate the checksum.
-echo "$SHA256SUM  $IMAGE" | shasum -a 256 -c || badcksum=yes
-[ "$badcksum" != "yes" ] || echo "bad checksum"
-[ "$badcksum" != "yes" ] || exit 1
+get_options() {
+  while getopts "i:c:d:3:4:" opt
+  do
+    case ${opt} in
+      i )
+        IMAGE="$OPTARG"
+        ;;
+      c )
+        CKSUM="$OPTARG"
+        ;;
+      d )
+        BSD_DEV="$OPTARG"
+        ;;
+      3 )
+        P3LABEL=$(expr "$OPTARG" : '\([^:]*\)')
+        P3SIZE=$(expr "$OPTARG" : '.*:\(.*\)')
+        P3SIZE=${P3SIZE:-0}
+        ;;
+      4 )
+        P4LABEL=$(expr "$OPTARG" : '\([^:]*\)')
+        P4SIZE=$(expr "$OPTARG" : '.*:\(.*\)')
+        P4SIZE=${P4SIZE:-0}
+        ;;
+      * )
+        error "parsing options"
+    esac
+  done
+  [ -z "$IMAGE" ] && error "must specify Raspbian image with \"-i <filename.zip>\""
+}
 
-# Determine the device name of the MacBook built-in SD reader.
-BSD_NAME=$(system_profiler SPCardReaderDataType | grep 'BSD Name:' | awk '{print $NF}' | head -1)
-[ -n "$BSD_NAME" ] || echo "no SD device found."
-[ -n "$BSD_NAME" ] || exit 2
-blk_dev=/dev/$BSD_NAME
-raw_dev=/dev/r$BSD_NAME
+do_checksum () {
+  IMG_FILE=$1
+  SUM_FILE=$2
+  [ -z "$SUM_FILE" ] && return 0
+  case $(basename "$SUM_FILE") in
+    $(basename "${IMG_FILE}.sha1"))
+      alg=1
+      ;;
+    $(basename "${IMG_FILE}.sha256"))
+      alg=256
+      ;;
+    *)
+      error "checksum file must be named '${IMG_FILE}.sha1' or '${IMG_FILE}.sha256'"
+      ;;
+  esac
+  
+  SUM=$(cut -d ' ' -f 1 $SUM_FILE)
+  echo doing checksum $IMG_FILE $SUM_FILE
+  echo "$SUM  $IMG_FILE" | shasum -a $alg -c -
+  return $?
+}
 
-# Write the image to the SD card.
-diskutil umountDisk force $BSD_NAME
-unzip -p $IMAGE | dd obs=512k of=$raw_dev
+get_device_names () {
+  [ -z "$BSD_DEV" ] && BSD_DEV=$(system_profiler SPCardReaderDataType | grep 'BSD Name:' | awk '{print $NF}' | head -1)
+  [ -z "$BSD_DEV" ] && return 1
+  BLK_DEV=/dev/$BSD_DEV
+  RAW_DEV=/dev/r$BSD_DEV
+}
 
-# The VFAT component (/boot) of the raspbian image
-# should mount automatically. Find it.
-mount_wait ${BSD_NAME}s1
-export BOOT_MNT=$(mount | grep ${BSD_NAME}s1 | awk '{print $3}')
-[ -n "$BOOT_MNT"  ] || echo "device not mounted after imaging"
-[ -n "$BOOT_MNT"  ] || exit 3
+write_image () {
+  diskutil umountDisk force $2
+  unzip -p $1 | dd obs=512k of=$2
+  return $?
+}
 
-# Save the original cmdline.txt file for later reinstallation. We'll be
-# deploying a temporary version of this file that calls go-init.
+get_mount_point () {
+  diskutil mountDisk $1 > /dev/null
+  mount_wait $1 || error "$1 not mounted"
+  echo $(mount | egrep "^[^ ]*$1 " | cut -d ' ' -f 3)
+}
+
+is_digit () {
+  if [ -n "$1" ] && [ "$1" -eq "$1" ] 2>/dev/null
+  then
+    return 0
+  fi
+  return 1
+}
+
+add_partitions () {
+  P3S=$1
+  P4S=$2
+  DEV=$3
+
+  is_digit $P3SIZE || error "P3 size \"$P3SIZE\""
+  is_digit $P4SIZE || error "P4 size \"$P4SIZE\""
+
+  # Parse the current disk layout.
+  IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $DEV)
+  TOTALBLOCKS=$(fdisk $DEV | grep $DEV | sed -E 's/^.*\[([0-9]+).*$/\1/')
+
+  # Calculate desired disk layout.
+  P3START=$(($TOTALBLOCKS-$P4SIZE-$P3SIZE))
+  P4START=$(($TOTALBLOCKS-$P4SIZE))
+  [ $P3SIZE -gt 0 ] && PARTS[2]=$P3START,$P3SIZE,0C,-,0,0,0,0,0,0
+  [ $P4SIZE -gt 0 ] && PARTS[3]=$P4START,$P4SIZE,0C,-,0,0,0,0,0,0
+
+  # Save the MBR ID because OSX fdisk will zero it
+  MBR_ID=$(dd if=$DEV bs=1 skip=440 count=4)
+  
+  # repartition, fix the MBR ID
+  diskutil umountDisk force $DEV
+  echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $DEV
+  mount_wait ${DEV}s1
+  diskutil umountDisk force $DEV
+  echo -n $MBR_ID | sudo dd of=$DEV bs=1 seek=440
+  mount_wait $DEV
+  diskutil umountDisk force $DEV
+}
+
+mkfs () {
+  DEV=$1
+  LABEL=$2
+  [ -n "$LABEL" ] && VOLOPT="-v $LABEL" || VOLOPT=""
+  newfs_msdos -F 32 $VOLOPT $DEV
+}
+
+do_run_parts () {
+  for i in ${1}/*sh
+  do
+    [ -e $i ] && $i
+  done
+}
+
+
+main () {
+  # Read CLI options
+  get_options $@
+
+  # Check the image file
+  do_checksum $IMAGE $CKSUM || error "checksum failure"
+
+  # Set device names
+  get_device_names || error "finding sd device - consider setting it with -d option"
+
+  # Write the image to the SD card
+write_image $IMAGE $RAW_DEV || error "writing image to sd card"
+  mount_wait ${BLK_DEV}s1
+
+  # Repartition
+  add_partitions "$P3SIZE" "$P4SIZE" "$BLK_DEV"
+
+  # Create new filessystems as necessary
+  [ $P3SIZE -gt 0 ] && mkfs ${RAW_DEV}s3 $P3LABEL
+  [ $P4SIZE -gt 0 ] && mkfs ${RAW_DEV}s4 $P4LABEL
+
+  # Remount everything (straggler filesystems)
+  diskutil umountDisk force $BSD_DEV
+  diskutil mountDisk $BSD_DEV
+
+  # The /boot filesystem should be automatically mounted by OSX. Find it.
+  export BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
+  [ -n "$BOOT_MNT"  ] || echo "${BLK_DEV}s1 device not mounted after imaging"
+
+  # Copy scripts and whatnot to the /boot partition
+(cd copy_to_sd_card && tar cLf - .) | (cd $BOOT_MNT; tar xf -)
+
+  # Save the original cmdline.txt file for later reinstallation. We'll be
+  # deploying a temporary version of this file that calls go-init.
 cp ${BOOT_MNT}/cmdline.txt ${BOOT_MNT}/cmdline.txt.orig
 
-# Build the go-init binary.
+  # Build the go-init binary, copy it to the SD card
 GOOS=linux GOARCH=arm GOARM=5 go build -o ${BOOT_MNT}/go-init go-init/main.go
 
-# Copy everything to the VFAT filesystem. This includes stuff we want on there
-# right now (cmdline.txt and go-init) plus the tar file that will be unrolled
-# onto the ext4 filesystem by go-init. Then unmount the disk.
-(cd $FILES4BOOT; tar cLf - .) | (cd $BOOT_MNT; tar xf -)
-diskutil umountDisk force $BSD_NAME
 
-# Exit here if additional partitions aren't needed.
-[ $P3SIZE -ne 0 ] || [ $P4SIZE -ne 0 ] || exit
+  # Export the mount point of extra partitions
+  [ $P3SIZE -gt 0 ] && export P3_MNT=$(get_mount_point ${BLK_DEV}s3)
+  [ $P4SIZE -gt 0 ] && export P4_MNT=$(get_mount_point ${BLK_DEV}s4)
 
-# Parse the current disk layout.
-IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $raw_dev)
-TOTALBLOCKS=$(fdisk $raw_dev | grep $raw_dev | sed -E 's/^.*\[([0-9]+).*$/\1/')
+  # run the post-build modules
+  do_run_parts $(dirname $0)/build.d
 
-# Calculate desired disk layout.
-P3START=$(($TOTALBLOCKS-$P4SIZE-$P3SIZE))
-P4START=$(($TOTALBLOCKS-$P4SIZE))
-[ $P3SIZE -gt 0 ] && PARTS[2]=$P3START,$P3SIZE,0C,-,0,0,0,0,0,0
-[ $P4SIZE -gt 0 ] && PARTS[3]=$P4START,$P4SIZE,0C,-,0,0,0,0,0,0
+}
 
-# Repartition the disk, collecting and restoring the MBR identifier.
-MBR_ID=$(dd if=$blk_dev bs=1 skip=440 count=4)
-
-
-echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $raw_dev
-mount_wait ${BSD_NAME}s1
-diskutil umountDisk force $BSD_NAME
-echo -n $MBR_ID | sudo dd of=$blk_dev bs=1 seek=440
-mount_wait $BSD_NAME
-diskutil umountDisk force $BSD_NAME
-
-# Add new partitions 3 and 4
-if [ $P3SIZE -gt 0 ]
-then
-  [ -n "$P3LABEL" ] && VOLOPT="-v $P3LABEL" || VOLOPT=""
-  newfs_msdos -F 32 $VOLOPT ${BSD_NAME}s3
-  export P3_MNT=$(mount | grep ${BSD_NAME}s3 | awk '{print $3}')
-fi
-
-if [ $P4SIZE -gt 0 ]
-then
-  [ -n "$P4LABEL" ] && VOLOPT="-v $P4LABEL" || VOLOPT=""
-  newfs_msdos -F 32 $VOLOPT ${BSD_NAME}s4
-  export P4_MNT=$(mount | grep ${BSD_NAME}s4 | awk '{print $3}')
-fi
-
-diskutil mountDisk disk3
-
-for i in $(dirname $0)/custom.d/*sh
-do
-  [ -e $i ] && $i
-done
-
-diskutil umountDisk force $BSD_NAME
+main $@
+diskutil umountDisk force $BSD_DEV
