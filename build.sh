@@ -6,7 +6,7 @@ error() {
 }
 
 wait_for_mount () {
-  tries=10
+  tries=100
   while [ $tries -gt 0 ] && ! mount | egrep -q "^[^ ]*$1 "
   do
     sleep .1
@@ -63,7 +63,6 @@ check_dos_8.3 () {
 do_checksum () {
   IMG_FILE=$1
   SUM_FILE=$2
-  [ -z "$SUM_FILE" ] && return 0
   case $(basename "$SUM_FILE") in
     $(basename "${IMG_FILE}.sha1"))
       alg=1
@@ -110,16 +109,16 @@ is_digit () {
 }
 
 add_partitions () {
-  P3S=$1
-  P4S=$2
-  DEV=$3
+  local P3SIZE=$1
+  local P4SIZE=$2
+  local RAWDEV=$3
 
-  is_digit $P3SIZE || error "P3 size \"$P3SIZE\""
-  is_digit $P4SIZE || error "P4 size \"$P4SIZE\""
+  is_digit $P3SIZE || error "partition 3 size: \"$P3SIZE\" must be numeric"
+  is_digit $P4SIZE || error "partition 4 size: \"$P4SIZE\" must be numeric"
 
   # Parse the current disk layout.
-  IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $DEV)
-  TOTALBLOCKS=$(fdisk $DEV | grep $DEV | sed -E 's/^.*\[([0-9]+).*$/\1/')
+  IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $RAWDEV)
+  TOTALBLOCKS=$(fdisk $RAWDEV | grep $RAWDEV | sed -E 's/^.*\[([0-9]+).*$/\1/')
 
   # Calculate desired disk layout.
   P3START=$(($TOTALBLOCKS-$P4SIZE-$P3SIZE))
@@ -128,16 +127,16 @@ add_partitions () {
   [ $P4SIZE -gt 0 ] && PARTS[3]=$P4START,$P4SIZE,0C,-,0,0,0,0,0,0
 
   # Save the MBR ID because OSX fdisk will zero it
-  MBR_ID=$(dd if=$DEV bs=1 skip=440 count=4)
+  MBR_ID=$(dd if=$RAWDEV bs=1 skip=440 count=4)
   
   # repartition, fix the MBR ID
-  diskutil umountDisk force $DEV
-  echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $DEV
-  wait_for_mount ${DEV}s1
-  diskutil umountDisk force $DEV
-  echo -n $MBR_ID | sudo dd of=$DEV bs=1 seek=440
-  wait_for_mount $DEV
-  diskutil umountDisk force $DEV
+  diskutil umountDisk force $RAWDEV
+  echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $RAWDEV
+  wait_for_mount ${RAWDEV}s1 # going to happen anyway, avoid the race condition
+  diskutil umountDisk force $RAWDEV
+  echo -n $MBR_ID | sudo dd of=$RAWDEV bs=1 seek=440
+  wait_for_mount ${RAWDEV}s1 # going to happen anyway, avoid the race condition
+  diskutil umountDisk force $RAWDEV
 }
 
 mkfs () {
@@ -160,7 +159,7 @@ main () {
   get_options $@
 
   # Check the image file
-  do_checksum $IMAGE $CKSUM || error "checksum failure"
+  [ -n "$CKSUM" ] && (do_checksum $IMAGE $CKSUM || error "checksum failure")
 
   # Set device names
   get_device_names || error "finding sd device - consider setting it with -d option"
