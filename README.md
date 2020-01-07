@@ -51,8 +51,8 @@ It does the following:
 6) Runs scripts in `build.d/` with environment variables `$BOOT_MNT`, `$P3_MNT` and `$P4_MNT`. These scripts are the mechanism to copy appliance-specific files onto the SD card's various partitions. Of particular interest: `/boot/go-init.d/07_edit_rc_local.sh` causes the Pi's boot process to look for a startup script at `/boot/rc.local`, which is created by `custom.d/01_create_start_script.sh`
 
 CLI options supported by `build.sh` are:
-* `-i <raspbian-image>.zip` specifying the image file is required.
-* `-c <raspbian-image>.zip.shaX` specifying a .zip.sha1 or .zip.sha256 file is optional. Get this file where you get your Raspbian images. When specified, causes checksum to be performed.
-* `-d diskX` the built-in SD reader on Retina MacBook Pros is auto-detected - other SD readers may be specified.
-* `-3 label:size` adds a 3rd partition to the SD card. Size in blocks. Automounted at `/opt/<label>`, DOS 8.3 label rules apply.
-* `-4 label:size` adds a 4th partition to the SD card. Size in blocks. Automounted at `/opt/<label>`, DOS 8.3 label rules apply.
+* `-i <raspbian-image>.zip` Specifying the image file is required.
+* `-c <raspbian-image>.zip.shaX` Specifying a .zip.sha1 or .zip.sha256 file is optional. Get this file where you get your Raspbian images. When specified, causes checksum to be performed.
+* `-d diskX` The built-in SD reader on Retina MacBook Pros is auto-detected - other SD readers may be specified.
+* `-3 label:size` Adds a 3rd partition to the SD card. Size in blocks. Automounted at `/opt/<label>`, DOS 8.3 label rules apply.
+* `-4 label:size` Adds a 4th partition to the SD card. Size in blocks. Automounted at `/opt/<label>`, DOS 8.3 label rules apply.
