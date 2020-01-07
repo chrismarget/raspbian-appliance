@@ -30,24 +30,28 @@ get_options() {
         BSD_DEV="$OPTARG"
         ;;
       3 )
-        P3LABEL=$(expr "$OPTARG" : '\([^:]*\)')
-        P3SIZE=$(expr "$OPTARG" : '.*:\(.*\)')
+        P3SIZE=$(expr "$OPTARG" : '\([^:]*\)')
+        P3LABEL=$(expr "$OPTARG" : '.*:\(.*\)')
         P3SIZE=${P3SIZE:-0}
         ;;
       4 )
-        P4LABEL=$(expr "$OPTARG" : '\([^:]*\)')
-        P4SIZE=$(expr "$OPTARG" : '.*:\(.*\)')
+        P4SIZE=$(expr "$OPTARG" : '\([^:]*\)')
+        P4LABEL=$(expr "$OPTARG" : '.*:\(.*\)')
         P4SIZE=${P4SIZE:-0}
         ;;
       * )
         error "parsing options"
     esac
   done
+  echo P3LABEL $P3LABEL
+  echo P3SIZE  $P3SIZE
+  echo P4LABEL $P4LABEL
+  echo P4SIZE  $P4SIZE
   [ -z "$IMAGE" ] && error "must specify Raspbian image with \"-i <filename.zip>\""
-  [ "$P3SIZE -eq 0 ] && [ -n "$P3LABEL ] && error "partition 3 label specified for zero-length filesystem"
-  [ "$P4SIZE -eq 0 ] && [ -n "$P4LABEL ] && error "partition 4 label specified for zero-length filesystem"
-  [ -n "$P3LABEL" ] && check_8.3 $P3LABEL || error "label $P3LABEL must be DOS 8.3 format"
-  [ -n "$P4LABEL" ] && check_8.3 $P4LABEL || error "label $P4LABEL must be DOS 8.3 format"
+  [ $P3SIZE -eq 0 ] && [ -n "$P3LABEL ] && error "partition 3 label specified for zero-length filesystem"
+  [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL ] && error "partition 4 label specified for zero-length filesystem"
+  ([ -z "$P3LABEL" ] || check_8.3 $P3LABEL) || error "label $P3LABEL must be DOS 8.3 format"
+  ([ -z "$P4LABEL" ] || check_8.3 $P4LABEL) || error "label $P4LABEL must be DOS 8.3 format"
 }
 
 check_8.3 () {
