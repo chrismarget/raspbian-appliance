@@ -30,13 +30,13 @@ get_options() {
         BSD_DEV="$OPTARG"
         ;;
       3 )
-        P3SIZE=$(expr "$OPTARG" : '\([^:]*\)')
         P3LABEL=$(expr "$OPTARG" : '.*:\(.*\)')
+        P3SIZE=$(expr "$OPTARG" : '\([^:]*\)')
         P3SIZE=${P3SIZE:-0}
         ;;
       4 )
-        P4SIZE=$(expr "$OPTARG" : '\([^:]*\)')
         P4LABEL=$(expr "$OPTARG" : '.*:\(.*\)')
+        P4SIZE=$(expr "$OPTARG" : '\([^:]*\)')
         P4SIZE=${P4SIZE:-0}
         ;;
       * )
