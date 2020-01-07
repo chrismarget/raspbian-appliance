@@ -5,7 +5,7 @@ error() {
   exit 1
 }
 
-mount_wait () {
+wait_for_mount () {
   tries=10
   while [ $tries -gt 0 ] && ! mount | egrep -q "^[^ ]*$1 "
   do
@@ -43,13 +43,9 @@ get_options() {
         error "parsing options"
     esac
   done
-  echo P3LABEL $P3LABEL
-  echo P3SIZE  $P3SIZE
-  echo P4LABEL $P4LABEL
-  echo P4SIZE  $P4SIZE
-  [ -z "$IMAGE" ] && error "must specify Raspbian image with \"-i <filename.zip>\""
-  [ $P3SIZE -eq 0 ] && [ -n "$P3LABEL ] && error "partition 3 label specified for zero-length filesystem"
-  [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL ] && error "partition 4 label specified for zero-length filesystem"
+  [ -z "$IMAGE" ] && error 'must specify Raspbian image with "-i <filename.zip>"'
+  [ $P3SIZE -eq 0 ] && [ -n "$P3LABEL" ] && error "partition 3 label specified for zero-length filesystem"
+  [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL" ] && error "partition 4 label specified for zero-length filesystem"
   ([ -z "$P3LABEL" ] || check_8.3 $P3LABEL) || error "label $P3LABEL must be DOS 8.3 format"
   ([ -z "$P4LABEL" ] || check_8.3 $P4LABEL) || error "label $P4LABEL must be DOS 8.3 format"
 }
@@ -101,7 +97,7 @@ write_image () {
 
 get_mount_point () {
   diskutil mountDisk $1 > /dev/null
-  mount_wait $1 || error "$1 not mounted"
+  wait_for_mount $1 || error "$1 not mounted"
   echo $(mount | egrep "^[^ ]*$1 " | cut -d ' ' -f 3)
 }
 
@@ -137,10 +133,10 @@ add_partitions () {
   # repartition, fix the MBR ID
   diskutil umountDisk force $DEV
   echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $DEV
-  mount_wait ${DEV}s1
+  wait_for_mount ${DEV}s1
   diskutil umountDisk force $DEV
   echo -n $MBR_ID | sudo dd of=$DEV bs=1 seek=440
-  mount_wait $DEV
+  wait_for_mount $DEV
   diskutil umountDisk force $DEV
 }
 
@@ -171,7 +167,7 @@ main () {
 
   # Write the image to the SD card
   write_image $IMAGE $RAW_DEV || error "writing image to sd card"
-  mount_wait ${BLK_DEV}s1
+  wait_for_mount ${BLK_DEV}s1
 
   # Repartition
   add_partitions "$P3SIZE" "$P4SIZE" "$BLK_DEV"
