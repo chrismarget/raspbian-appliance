@@ -28,7 +28,7 @@ The ordinary first boot of Raspbian is actually two boots:
 * `init=/usr/lib/raspi-config/init-resize.sh` (calls `fdisk` to resize the root partition, then reboots)
 * normal boot which resizes the root filesystem onto the newly-roomy partition on its way into multiuser mode
 
-I'm adding `go-init` as the first of (now) three boots. Needed changes to the (inaccessible to MacOS users) root filesystem happen during that first boot, _before_ `init-resize.sh` gets ahold of it.
+I'm adding `go-init` as the first of what is now a _three boot_ initial startup. Needed changes to the (inaccessible to MacOS users) root filesystem happen during that first boot, _before_ `init-resize.sh` gets ahold of it. The second and third boot happen the way the Raspbian developers intended.
 
 ## What does go-init do?
 `go-init` does exactly 3 things:
