@@ -44,6 +44,20 @@ get_options() {
     esac
   done
   [ -z "$IMAGE" ] && error "must specify Raspbian image with \"-i <filename.zip>\""
+  [ "$P3SIZE -eq 0 ] && [ -n "$P3LABEL ] && error "partition 3 label specified for zero-length filesystem"
+  [ "$P4SIZE -eq 0 ] && [ -n "$P4LABEL ] && error "partition 4 label specified for zero-length filesystem"
+  [ -n "$P3LABEL" ] && check_8.3 $P3LABEL || error "label $P3LABEL must be DOS 8.3 format"
+  [ -n "$P4LABEL" ] && check_8.3 $P4LABEL || error "label $P4LABEL must be DOS 8.3 format"
+}
+
+check_8.3 () {
+  if [[ "$1" =~ "." ]]
+  then
+    [[ "$1" =~ ^[a-zA-Z0-9]{1,8}.[a-zA-Z0-9]{1,3}$ ]] || return 1
+  else
+    [[ "$1" =~ ^[a-zA-Z0-9]{1,8}$ ]] || return 2
+  fi
+  return 0
 }
 
 do_checksum () {
@@ -152,7 +166,7 @@ main () {
   get_device_names || error "finding sd device - consider setting it with -d option"
 
   # Write the image to the SD card
-write_image $IMAGE $RAW_DEV || error "writing image to sd card"
+  write_image $IMAGE $RAW_DEV || error "writing image to sd card"
   mount_wait ${BLK_DEV}s1
 
   # Repartition
@@ -171,14 +185,14 @@ write_image $IMAGE $RAW_DEV || error "writing image to sd card"
   [ -n "$BOOT_MNT"  ] || echo "${BLK_DEV}s1 device not mounted after imaging"
 
   # Copy scripts and whatnot to the /boot partition
-(cd copy_to_sd_card && tar cLf - .) | (cd $BOOT_MNT; tar xf -)
+  (cd $(dirname $0)/copy_to_sd_card && tar cLf - .) | (cd $BOOT_MNT; tar xf -)
 
   # Save the original cmdline.txt file for later reinstallation. We'll be
   # deploying a temporary version of this file that calls go-init.
-cp ${BOOT_MNT}/cmdline.txt ${BOOT_MNT}/cmdline.txt.orig
+  cp ${BOOT_MNT}/cmdline.txt ${BOOT_MNT}/cmdline.txt.orig
 
   # Build the go-init binary, copy it to the SD card
-GOOS=linux GOARCH=arm GOARM=5 go build -o ${BOOT_MNT}/go-init go-init/main.go
+  GOOS=linux GOARCH=arm GOARM=5 go build -o ${BOOT_MNT}/go-init go-init/main.go
 
 
   # Export the mount point of extra partitions
