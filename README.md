@@ -40,7 +40,7 @@ Yeah. That's a problem, and was the genesis of this whole project. I'd wanted to
 ## What's `build.sh` do?
 Run it to install Raspbian and all of the needed changes:
 
-    sudo ./build.sh
+    sudo ./build.sh -i <raspbian-image-file>.zip
     
 It does the following:
 1) Installs the Raspbian zip file to the SD card. Variables at the top of this script specify the Raspbian image location and checksum. The SD card is auto-detected (on my MacBook, anyway).
@@ -48,4 +48,11 @@ It does the following:
 3) Builds and installs the `go-init` binary (tested with go1.13.4)
 4) Copies the contents of `copy_to_sd_card/` to the SD card's `/boot` partition. This includes the temporary `cmdline.txt` file and the scripts in `go-init.d` which will be run on the Pi's first boot.
 5) Adds additional partitions as needed (see `P[34]SIZE` and `P[34]LABEL` variables) to the end of the SD card.
-6) Runs scripts in `custom.d/` with environment variables `$BOOT_MNT`, `$P3_MNT` and `$P4_MNT`. These scripts are the mechanism to copy appliance-specific files onto the SD card's various partitions. Of particular interest: `07_edit_rc_local.sh` causes the Pi's boot process to look for a startup script at `/boot/rc.local`, which is created by `custom.d/01_create_start_script.sh`
+6) Runs scripts in `build.d/` with environment variables `$BOOT_MNT`, `$P3_MNT` and `$P4_MNT`. These scripts are the mechanism to copy appliance-specific files onto the SD card's various partitions. Of particular interest: `/boot/go-init.d/07_edit_rc_local.sh` causes the Pi's boot process to look for a startup script at `/boot/rc.local`, which is created by `custom.d/01_create_start_script.sh`
+
+CLI options supported by `build.sh` are:
+* -i <raspbian-image>.zip (specifying the image file is required)
+* -c <raspbian-image>.zip.shaX (specifying a .zip.sha1 or .zip.sha256 file is optional)
+* -d diskX (the built-in SD reader on Retina MacBook Pros is auto-detected - other SD readers should be specified)
+* -3 label:size (adds a 3rd partition to the SD card. Size in blocks. Automounted at `/opt/label`)
+* -4 label:size (adds a 3rd partition to the SD card. Size in blocks. Automounted at `/opt/label`)
