@@ -54,5 +54,5 @@ CLI options supported by `build.sh` are:
 * `-i <raspbian-image>.zip` specifying the image file is required.
 * `-c <raspbian-image>.zip.shaX` specifying a .zip.sha1 or .zip.sha256 file is optional. Get this file where you get your Raspbian images. When specified, causes checksum to be performed.
 * `-d diskX` the built-in SD reader on Retina MacBook Pros is auto-detected - other SD readers may be specified.
-* `-3 label:size` adds a 3rd partition to the SD card. Size in blocks. Automounted at `/opt/<label>, DOS 8.3 label rules apply.`
-* `-4 label:size` adds a 4th partition to the SD card. Size in blocks. Automounted at `/opt/<label>, DOS 8.3 label rules apply.`
+* `-3 label:size` adds a 3rd partition to the SD card. Size in blocks. Automounted at `/opt/<label>`, DOS 8.3 label rules apply.
+* `-4 label:size` adds a 4th partition to the SD card. Size in blocks. Automounted at `/opt/<label>`, DOS 8.3 label rules apply.
