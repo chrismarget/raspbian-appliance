@@ -2,3 +2,4 @@
 .*.swp
 go-init/go-init
 .idea
+.build.cache/
