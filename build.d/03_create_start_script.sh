@@ -7,8 +7,6 @@ then
   error "/boot mount point unknown"
 fi
 
-cp $(dirname $0)/data/rc.local $BOOT_MNT/rc.local
-
 cat > $BOOT_MNT/rc.local << EOF
 #!/bin/sh
 
