@@ -5,6 +5,31 @@ error() {
   exit 1
 }
 
+read_config () {
+  local CFG="${0/.sh/.cfg}"
+  [ -e $CFG ] && . $CFG
+}
+
+fetch_files () {
+  CACHE_DIR="${0/.sh/.cache}"
+  CACHE_DIR="$(dirname $CACHE_DIR)/.$(basename $CACHE_DIR)"
+  mkdir -p "$CACHE_DIR"
+
+  if [ -z "$IMAGE" ] && [ -n "$IMAGE_URL" ]
+  then
+    local IMAGE_FILE="${CACHE_DIR}/$(basename $IMAGE_URL)"
+    [ -e "$IMAGE_FILE" ] || curl -o "$IMAGE_FILE" "$IMAGE_URL" || error "downloading $IMAGE_URL"
+    IMAGE=$IMAGE_FILE
+  fi
+
+  if [ -z "$CKSUM" ] && [ -n "$CKSUM_URL" ]
+  then
+    local CKSUM_FILE="${CACHE_DIR}/$(basename $CKSUM_URL)"
+    [ -e "$CKSUM_FILE" ] || curl -o "$CKSUM_FILE" "$CKSUM_URL" || error "downloading $CKSUM_URL"
+    CKSUM=$CKSUM_FILE
+  fi
+}
+
 wait_for_mount () {
   tries=100
   while [ $tries -gt 0 ] && ! mount | egrep -q "^[^ ]*$1 "
@@ -43,7 +68,10 @@ get_options() {
   done
   export P3SIZE=${P3SIZE:-0}
   export P4SIZE=${P4SIZE:-0}
-  [ -z "$IMAGE" ] && error 'must specify Raspbian image with "-i <filename.zip>"'
+}
+
+check_params () {
+  [ -z "$IMAGE" ] && error "Raspbian image not specified"
   [ $P3SIZE -eq 0 ] && [ -n "$P3LABEL" ] && error "partition 3 label specified for zero-length filesystem"
   [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL" ] && error "partition 4 label specified for zero-length filesystem"
   ([ -z "$P3LABEL" ] || check_dos_8.3 $P3LABEL) || error "label $P3LABEL must be DOS 8.3 format"
@@ -165,6 +193,15 @@ do_run_parts () {
 main () {
   # Read CLI options
   get_options $@
+
+  # Read config file
+  read_config
+  
+  # fetch files specified by URL
+  fetch_files
+
+  # validate
+  check_params
 
   # Check the image file
   [ -n "$CKSUM" ] && (do_checksum $IMAGE $CKSUM || error "checksum failure")

@@ -4,6 +4,10 @@
 
 [ -n "$BOOT_MNT" ] || error "boot partition mount point unknown"
 [ -d "$BOOT_MNT" ] || error "boot partition should be mounted, but isn't"
+
+[ -n "$P3_MNT" ] && ([ -d "$P3_MNT" ] || echo "partition 3 should be mounted, but isn't")
+[ -n "$P4_MNT" ] && ([ -d "$P4_MNT" ] || echo "partition 4 should be mounted, but isn't")
+sleep 2
 [ -n "$P3_MNT" ] && ([ -d "$P3_MNT" ] || error "partition 3 should be mounted, but isn't")
 [ -n "$P4_MNT" ] && ([ -d "$P4_MNT" ] || error "partition 4 should be mounted, but isn't")
 
