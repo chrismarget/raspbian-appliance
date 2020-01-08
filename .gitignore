@@ -5,3 +5,4 @@ go-init/go-init
 .build.cache/
 copy_to_sd_p3/
 copy_to_sd_p4/
+copy_to_sd_boot/go-init
