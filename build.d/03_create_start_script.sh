@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. functions
+. $(dirname $0)/functions
 
 if [ -z "$BOOT_MNT" ] || [ ! -e "$BOOT_MNT" ]
 then
