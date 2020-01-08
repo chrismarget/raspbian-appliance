@@ -1,0 +1,4 @@
+error () {
+  echo "error $@"
+  exit 1
+}

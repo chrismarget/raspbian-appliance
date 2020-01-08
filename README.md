@@ -33,7 +33,7 @@ I'm adding `go-init` as the first of what is now a _three boot_ initial startup.
 ## What does go-init do?
 `go-init` does exactly 3 things:
 1) Mounts the `/` and `/boot` filesystems in their usual locations.
-2) Runs all the shell scripts found in `/boot/go-init.d/*.sh`. On the SD card, these files live on the VFAT filesystem which Mac OSX can see and change. Within this project, these files live in `copy_to_sd_card/go-init.d/`. `go-init` runs them in lexical sort order and they must be named with the `.sh` suffix.
+2) Runs all the shell scripts found in `/boot/go-init.d/*.sh`. On the SD card, these files live on the VFAT filesystem which Mac OSX can see and change. Within this project, these files live in `copy_to_sd_boot/go-init.d/`. `go-init` runs them in lexical sort order and they must be named with the `.sh` suffix.
 3) Cleanly unmounts the filesystems and reboots the Pi.
 
 The `01_restore_kcl_file.sh` script replaces `cmdline.txt` with `cmdline.txt.orig` (the original Raspbian file is saved there by `build.sh`), restoring normal system behavior. Without that step, go-init would run in an eternal reboot loop.
@@ -52,7 +52,7 @@ It does the following:
 1) Installs the Raspbian zip file to the SD card. Variables at the top of this script specify the Raspbian image location and checksum. The SD card is auto-detected (on my MacBook, anyway).
 2) Sets aside the original `cmdline.txt` as `cmdline.txt.orig`  for restoration by `01_restore_kcl_file.sh`
 3) Builds and installs the `go-init` binary (tested with go1.13.4)
-4) Copies the contents of `copy_to_sd_card/` to the SD card's `/boot` partition. This includes the temporary `cmdline.txt` file and the scripts in `go-init.d` which will be run on the Pi's first boot.
+4) Copies the contents of `copy_to_sd_boot/` to the SD card's `/boot` partition. This includes the temporary `cmdline.txt` file and the scripts in `go-init.d` which will be run on the Pi's first boot.
 5) Adds additional partitions as needed (see `P[34]SIZE` and `P[34]LABEL` variables) to the end of the SD card.
 6) Runs scripts in `build.d/` with environment variables `$BOOT_MNT`, `$P3_MNT` and `$P4_MNT`. These scripts are the mechanism to copy appliance-specific files onto the SD card's various partitions. Of particular interest: `/boot/go-init.d/07_edit_rc_local.sh` causes the Pi's boot process to look for a startup script at `/boot/rc.local`, which is created by `custom.d/01_create_start_script.sh`
 

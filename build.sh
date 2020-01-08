@@ -41,8 +41,8 @@ get_options() {
         error "parsing options"
     esac
   done
-  P3SIZE=${P3SIZE:-0}
-  P4SIZE=${P4SIZE:-0}
+  export P3SIZE=${P3SIZE:-0}
+  export P4SIZE=${P4SIZE:-0}
   [ -z "$IMAGE" ] && error 'must specify Raspbian image with "-i <filename.zip>"'
   [ $P3SIZE -eq 0 ] && [ -n "$P3LABEL" ] && error "partition 3 label specified for zero-length filesystem"
   [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL" ] && error "partition 4 label specified for zero-length filesystem"
@@ -150,6 +150,11 @@ mkfs () {
 }
 
 do_run_parts () {
+  export PROJECT_DIR=$(dirname $0)
+  export BOOT_MNT
+  [ $P3SIZE -gt 0 ] && export P3_MNT=$(get_mount_point ${BLK_DEV}s3)
+  [ $P4SIZE -gt 0 ] && export P4_MNT=$(get_mount_point ${BLK_DEV}s4)
+
   for i in ${1}/*sh
   do
     [ -e $i ] && $i
@@ -183,27 +188,19 @@ main () {
   diskutil mountDisk $BSD_DEV
 
   # The /boot filesystem should be automatically mounted by OSX. Find it.
-  export BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
+  BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
   [ -n "$BOOT_MNT"  ] || echo "${BLK_DEV}s1 device not mounted after imaging"
 
   # Save the original cmdline.txt file for later reinstallation. We'll be
   # deploying a temporary version of this file that calls go-init.
   cp ${BOOT_MNT}/cmdline.txt ${BOOT_MNT}/cmdline.txt.orig
 
-  # Copy scripts and whatnot to the /boot partition
-  (cd $(dirname $0)/copy_to_sd_card && tar cLf - .) | (cd $BOOT_MNT; tar xf -)
-
-  # Build the go-init binary, copy it to the SD card
-  GOOS=linux GOARCH=arm GOARM=5 go build -o ${BOOT_MNT}/go-init go-init/main.go
-
-
-  # Export the mount point of extra partitions
-  [ $P3SIZE -gt 0 ] && export P3_MNT=$(get_mount_point ${BLK_DEV}s3)
-  [ $P4SIZE -gt 0 ] && export P4_MNT=$(get_mount_point ${BLK_DEV}s4)
+  # Build the go-init binary
+  DIR=$(dirname $0)/copy_to_sd_boot
+  GOOS=linux GOARCH=arm GOARM=5 go build -o ${DIR}/go-init go-init/main.go
 
   # run the post-build modules
   do_run_parts $(dirname $0)/build.d
-
 }
 
 main $@
