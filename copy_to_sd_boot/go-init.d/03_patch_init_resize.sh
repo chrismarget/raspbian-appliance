@@ -20,7 +20,7 @@ SUM=$(md5sum $TARGET | awk '{print $1}')
 
 [ -n "$SUM" ] || error "unable to checksum $TARGET"
 
-PATCHDIR=$(dirname $0)/init_resize_patch.d
+PATCHDIR=$(dirname $0)/patch.d/init_resize_patches
 
 [ -e "$PATCHDIR/$SUM.patch" ] || error "No patchfile $SUM.patch found in $PATCHDIR"
 
