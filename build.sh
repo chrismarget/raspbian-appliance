@@ -113,13 +113,11 @@ do_checksum () {
 }
 
 get_device_name () {
-echo here
   if [ -z "$BSD_DEV" ]
   then
     DISKS=()
     for fullpath in $(diskutil list | egrep "^/dev/disk[0-9]+ .*external" | awk '{print $1}')
     do
-      echo loop
       bn=$(basename $fullpath)
       DISKS+=($bn)
     done
