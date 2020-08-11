@@ -112,11 +112,71 @@ do_checksum () {
   return $?
 }
 
-get_device_names () {
-  [ -z "$BSD_DEV" ] && BSD_DEV=$(system_profiler SPCardReaderDataType | grep 'BSD Name:' | awk '{print $NF}' | head -1)
-  [ -z "$BSD_DEV" ] && return 1
+get_device_name () {
+echo here
+  if [ -z "$BSD_DEV" ]
+  then
+    DISKS=()
+    for fullpath in $(diskutil list | egrep "^/dev/disk[0-9]+ .*external" | awk '{print $1}')
+    do
+      echo loop
+      bn=$(basename $fullpath)
+      DISKS+=($bn)
+    done
+
+
+    if [ ${#DISKS[@]} -eq 0 ]
+    then
+      error "Cannot find disks"
+    fi
+
+    if [ ${#DISKS[@]} -gt 1 ]
+    then
+      error "Unable to chose between ${DISKS[@]}, please set BSD_DEV environment variable, or add to configuraiton file"
+    fi
+
+    maybedisk=$DISKS
+    preamble=$(diskutil list $maybedisk)
+    question="Overwrite ${maybedisk}?"
+    if get_yes_no "$preamble" "$question" y
+    then
+      BSD_DEV=$maybedisk
+    else
+      exit 1
+    fi
+  fi
   BLK_DEV=/dev/$BSD_DEV
   RAW_DEV=/dev/r$BSD_DEV
+  echo blk: $BLK_DEV
+  echo raw: $RAW_DEV
+}
+
+# call with 3 args: preamble, question, default
+get_yes_no () {
+  # set up default answer + yesno prompt
+  case $3 in
+    y|yes|Y|YES) yesno="[Y/n]: "
+                 deflt=0;;
+    n|no|N|NO)   yesno="[y/N]: "
+                 deflt=1;;
+    *)           yesno="[y/n]: "
+                 deflt="";;
+  esac
+
+  # print preamble
+  echo "$1"
+
+  while true
+  do
+    # print question
+    echo -n "$2 $yesno"
+    read r
+    case $r in
+      y|yes|Y|YES) return 0;;
+      n|no|N|NO) return 1;;
+      "") [ -n "$deflt" ] && return $deflt
+    esac
+  done
 }
 
 write_image () {
@@ -206,8 +266,8 @@ main () {
   # Check the image file
   [ -n "$CKSUM" ] && (do_checksum $IMAGE $CKSUM || error "checksum failure")
 
-  # Set device names
-  get_device_names || error "finding sd device - consider setting it with -d option"
+  # Set device name
+  get_device_name || error "finding sd device - consider setting it with -d option"
 
   # Write the image to the SD card
   write_image $IMAGE $RAW_DEV || error "writing image to sd card"
