@@ -132,21 +132,20 @@ get_device_name () {
     then
       error "Unable to chose between ${DISKS[@]}, please set BSD_DEV environment variable, or add to configuraiton file"
     fi
-
-    maybedisk=$DISKS
-    preamble=$(diskutil list $maybedisk)
-    question="Overwrite ${maybedisk}?"
-    if get_yes_no "$preamble" "$question" y
-    then
-      BSD_DEV=$maybedisk
-    else
-      exit 1
-    fi
   fi
+  BSD_DEV=$DISKS
   BLK_DEV=/dev/$BSD_DEV
   RAW_DEV=/dev/r$BSD_DEV
-  echo blk: $BLK_DEV
-  echo raw: $RAW_DEV
+}
+
+confirm_device () {
+  maybedisk=$1
+  preamble=$(diskutil list $maybedisk)
+  question="Overwrite ${maybedisk}?"
+  if ! get_yes_no "$preamble" "$question" y
+  then
+    exit 1
+  fi
 }
 
 # call with 3 args: preamble, question, default
@@ -208,10 +207,15 @@ add_partitions () {
   # Parse the current disk layout.
   IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $RAWDEV)
   TOTALBLOCKS=$(fdisk $RAWDEV | grep $RAWDEV | sed -E 's/^.*\[([0-9]+).*$/\1/')
+  LASTUSED=$(echo ${PARTS[*]} | tr ' ' '\n' | awk -F, '{print $2}' | sort -n | tail -1)
 
   # Calculate desired disk layout.
   P3START=$(($TOTALBLOCKS-$P4SIZE-$P3SIZE))
   P4START=$(($TOTALBLOCKS-$P4SIZE))
+
+  [ $P3START -gt $LASTUSED ] || error "Partition 3 starts in preallocated disk space"
+  [ $P4START -gt $LASTUSED ] || error "Partition 4 starts in preallocated disk space"
+
   [ $P3SIZE -gt 0 ] && PARTS[2]=$P3START,$P3SIZE,0C,-,0,0,0,0,0,0
   [ $P4SIZE -gt 0 ] && PARTS[3]=$P4START,$P4SIZE,0C,-,0,0,0,0,0,0
 
@@ -254,6 +258,12 @@ main () {
 
   # Read config file
   read_config
+
+  # Set device name
+  get_device_name || error "finding sd device - consider setting it with -d option"
+
+  # Confirm device before overwrite
+  confirm_device $BSD_DEV
   
   # fetch files specified by URL
   fetch_files
@@ -264,9 +274,6 @@ main () {
   # Check the image file
   [ -n "$CKSUM" ] && (do_checksum $IMAGE $CKSUM || error "checksum failure")
 
-  # Set device name
-  get_device_name || error "finding sd device - consider setting it with -d option"
-
   # Write the image to the SD card
   write_image $IMAGE $RAW_DEV || error "writing image to sd card"
   wait_for_mount ${BLK_DEV}s1
@@ -275,8 +282,17 @@ main () {
   add_partitions "$P3SIZE" "$P4SIZE" "$BLK_DEV"
 
   # Create new filessystems as necessary
-  [ $P3SIZE -gt 0 ] && mkfs ${RAW_DEV}s3 $P3LABEL
-  [ $P4SIZE -gt 0 ] && mkfs ${RAW_DEV}s4 $P4LABEL
+  #[ $P3SIZE -gt 0 ] && mkfs ${RAW_DEV}s3 $P3LABEL
+  #[ $P4SIZE -gt 0 ] && mkfs ${RAW_DEV}s4 $P4LABEL
+
+  [ $P3SIZE -gt 0 ] && newfs_exfat -v $P3LABEL ${RAW_DEV}s3
+  [ $P4SIZE -gt 0 ] && newfs_exfat -v $P4LABEL ${RAW_DEV}s4
+
+  # temporary
+  cp wpa_supplicant.conf /Volumes/boot
+  touch /Volumes/boot/ssh
+  diskutil umountDisk force $BSD_DEV
+  exit
 
   # Remount everything (straggler filesystems)
   diskutil umountDisk force $BSD_DEV
