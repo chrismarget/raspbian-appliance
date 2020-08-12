@@ -189,7 +189,7 @@ get_mount_point () {
   echo $(mount | egrep "^[^ ]*$1 " | cut -d ' ' -f 3)
 }
 
-is_digit () {
+is_digits () {
   if [ -n "$1" ] && [ "$1" -eq "$1" ] 2>/dev/null
   then
     return 0
@@ -202,8 +202,8 @@ add_partitions () {
   local P4SIZE=$2
   local RAWDEV=$3
 
-  is_digit $P3SIZE || error "partition 3 size: \"$P3SIZE\" must be numeric"
-  is_digit $P4SIZE || error "partition 4 size: \"$P4SIZE\" must be numeric"
+  is_digits $P3SIZE || error "partition 3 size: \"$P3SIZE\" must be numeric"
+  is_digits $P4SIZE || error "partition 4 size: \"$P4SIZE\" must be numeric"
 
   # Parse the current disk layout.
   IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $RAWDEV)
