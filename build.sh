@@ -112,11 +112,77 @@ do_checksum () {
   return $?
 }
 
-get_device_names () {
-  [ -z "$BSD_DEV" ] && BSD_DEV=$(system_profiler SPCardReaderDataType | grep 'BSD Name:' | awk '{print $NF}' | head -1)
-  [ -z "$BSD_DEV" ] && return 1
+get_device_name () {
+  # Check for macbook built-in SD reader
+  if [ -z "$BSD_DEV" ]
+  then
+    BSD_DEV=$(system_profiler SPCardReaderDataType | grep 'BSD Name:' | awk '{print $NF}' | head -1)
+  fi
+
+  # Catalina only: Check for external media
+  if [ -z "$BSD_DEV" ]
+  then
+    DISKS=()
+    for fullpath in $(diskutil list | egrep "^/dev/disk[0-9]+ .*external" | awk '{print $1}')
+    do
+      bn=$(basename $fullpath)
+      DISKS+=($bn)
+    done
+
+
+    if [ ${#DISKS[@]} -eq 0 ]
+    then
+      error "Cannot find disks"
+    fi
+
+    if [ ${#DISKS[@]} -gt 1 ]
+    then
+      error "Unable to chose between ${DISKS[@]}, please set BSD_DEV environment variable, or add to configuraiton file"
+    fi
+
+    BSD_DEV=$DISKS
+    [ -z "$BSD_DEV" ] && error "get_device_name couldn't select a disk"
+  fi
   BLK_DEV=/dev/$BSD_DEV
   RAW_DEV=/dev/r$BSD_DEV
+}
+
+confirm_device () {
+  maybedisk=$1
+  preamble=$(diskutil list $maybedisk)
+  question="Overwrite ${maybedisk}?"
+  if ! get_yes_no "$preamble" "$question" y
+  then
+    exit 1
+  fi
+}
+
+# call with 3 args: preamble, question, default
+get_yes_no () {
+  # set up default answer + yesno prompt
+  case $3 in
+    y|yes|Y|YES) yesno="[Y/n]: "
+                 deflt=0;;
+    n|no|N|NO)   yesno="[y/N]: "
+                 deflt=1;;
+    *)           yesno="[y/n]: "
+                 deflt="";;
+  esac
+
+  # print preamble
+  echo "$1"
+
+  while true
+  do
+    # print question
+    echo -n "$2 $yesno"
+    read r
+    case $r in
+      y|yes|Y|YES) return 0;;
+      n|no|N|NO) return 1;;
+      "") [ -n "$deflt" ] && return $deflt
+    esac
+  done
 }
 
 write_image () {
@@ -131,7 +197,7 @@ get_mount_point () {
   echo $(mount | egrep "^[^ ]*$1 " | cut -d ' ' -f 3)
 }
 
-is_digit () {
+is_digits () {
   if [ -n "$1" ] && [ "$1" -eq "$1" ] 2>/dev/null
   then
     return 0
@@ -144,16 +210,21 @@ add_partitions () {
   local P4SIZE=$2
   local RAWDEV=$3
 
-  is_digit $P3SIZE || error "partition 3 size: \"$P3SIZE\" must be numeric"
-  is_digit $P4SIZE || error "partition 4 size: \"$P4SIZE\" must be numeric"
+  is_digits $P3SIZE || error "partition 3 size: \"$P3SIZE\" must be numeric"
+  is_digits $P4SIZE || error "partition 4 size: \"$P4SIZE\" must be numeric"
 
   # Parse the current disk layout.
   IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $RAWDEV)
   TOTALBLOCKS=$(fdisk $RAWDEV | grep $RAWDEV | sed -E 's/^.*\[([0-9]+).*$/\1/')
+  LASTUSED=$(echo ${PARTS[*]} | tr ' ' '\n' | awk -F, '{print $2}' | sort -n | tail -1)
 
   # Calculate desired disk layout.
   P3START=$(($TOTALBLOCKS-$P4SIZE-$P3SIZE))
   P4START=$(($TOTALBLOCKS-$P4SIZE))
+
+  [ $P3START -gt $LASTUSED ] || error "Partition 3 starts in preallocated disk space"
+  [ $P4START -gt $LASTUSED ] || error "Partition 4 starts in preallocated disk space"
+
   [ $P3SIZE -gt 0 ] && PARTS[2]=$P3START,$P3SIZE,0C,-,0,0,0,0,0,0
   [ $P4SIZE -gt 0 ] && PARTS[3]=$P4START,$P4SIZE,0C,-,0,0,0,0,0,0
 
@@ -196,6 +267,12 @@ main () {
 
   # Read config file
   read_config
+
+  # Set device name
+  get_device_name || error "finding sd device - consider setting it with -d option"
+
+  # Confirm device before overwrite
+  confirm_device $BSD_DEV
   
   # fetch files specified by URL
   fetch_files
@@ -205,9 +282,6 @@ main () {
 
   # Check the image file
   [ -n "$CKSUM" ] && (do_checksum $IMAGE $CKSUM || error "checksum failure")
-
-  # Set device names
-  get_device_names || error "finding sd device - consider setting it with -d option"
 
   # Write the image to the SD card
   write_image $IMAGE $RAW_DEV || error "writing image to sd card"
@@ -227,10 +301,6 @@ main () {
   # The /boot filesystem should be automatically mounted by OSX. Find it.
   BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
   [ -n "$BOOT_MNT"  ] || echo "${BLK_DEV}s1 device not mounted after imaging"
-
-  # Save the original cmdline.txt file for later reinstallation. We'll be
-  # deploying a temporary version of this file that calls go-init.
-  cp ${BOOT_MNT}/cmdline.txt ${BOOT_MNT}/cmdline.txt.orig
 
   # Build the go-init binary
   DIR=$(dirname $0)/copy_to_sd_boot
