@@ -113,6 +113,13 @@ do_checksum () {
 }
 
 get_device_name () {
+  # Check for macbook built-in SD reader
+  if [ -z "$BSD_DEV" ]
+  then
+    BSD_DEV=$(system_profiler SPCardReaderDataType | grep 'BSD Name:' | awk '{print $NF}' | head -1)
+  fi
+
+  # Catalina only: Check for external media
   if [ -z "$BSD_DEV" ]
   then
     DISKS=()
@@ -132,8 +139,10 @@ get_device_name () {
     then
       error "Unable to chose between ${DISKS[@]}, please set BSD_DEV environment variable, or add to configuraiton file"
     fi
+
+    BSD_DEV=$DISKS
+    [ -z "$BSD_DEV" ] && error "get_device_name couldn't select a disk"
   fi
-  BSD_DEV=$DISKS
   BLK_DEV=/dev/$BSD_DEV
   RAW_DEV=/dev/r$BSD_DEV
 }
@@ -282,17 +291,8 @@ main () {
   add_partitions "$P3SIZE" "$P4SIZE" "$BLK_DEV"
 
   # Create new filessystems as necessary
-  #[ $P3SIZE -gt 0 ] && mkfs ${RAW_DEV}s3 $P3LABEL
-  #[ $P4SIZE -gt 0 ] && mkfs ${RAW_DEV}s4 $P4LABEL
-
-  [ $P3SIZE -gt 0 ] && newfs_exfat -v $P3LABEL ${RAW_DEV}s3
-  [ $P4SIZE -gt 0 ] && newfs_exfat -v $P4LABEL ${RAW_DEV}s4
-
-  # temporary
-  cp wpa_supplicant.conf /Volumes/boot
-  touch /Volumes/boot/ssh
-  diskutil umountDisk force $BSD_DEV
-  exit
+  [ $P3SIZE -gt 0 ] && mkfs ${RAW_DEV}s3 $P3LABEL
+  [ $P4SIZE -gt 0 ] && mkfs ${RAW_DEV}s4 $P4LABEL
 
   # Remount everything (straggler filesystems)
   diskutil umountDisk force $BSD_DEV
@@ -301,10 +301,6 @@ main () {
   # The /boot filesystem should be automatically mounted by OSX. Find it.
   BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
   [ -n "$BOOT_MNT"  ] || echo "${BLK_DEV}s1 device not mounted after imaging"
-
-  # Save the original cmdline.txt file for later reinstallation. We'll be
-  # deploying a temporary version of this file that calls go-init.
-  cp ${BOOT_MNT}/cmdline.txt ${BOOT_MNT}/cmdline.txt.orig
 
   # Build the go-init binary
   DIR=$(dirname $0)/copy_to_sd_boot
