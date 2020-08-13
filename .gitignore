@@ -8,3 +8,4 @@ copy_to_sd_p4/
 copy_to_sd_boot/go-init
 wpa_supplicant.conf
 authorized_keys
+ssh
