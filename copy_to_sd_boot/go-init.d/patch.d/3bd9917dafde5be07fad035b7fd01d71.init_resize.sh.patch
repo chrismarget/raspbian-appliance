@@ -4,8 +4,7 @@
 <     return 1
 <   fi
 < 
-128a124,139
-> 
+129a125,140
 >   for PART_BEGIN in $(echo "$PARTITION_TABLE" | egrep '^[0-9]:' | awk -F: '{print $2}')
 >   do
 >     if [ $PART_BEGIN -gt $ROOT_PART_END ] && [ $PART_BEGIN -lt $TARGET_END ]
@@ -21,3 +20,10 @@
 >       TARGET_END=$(($PART_BEGIN - 1))
 >     fi
 >   done
+> 
+189,190c200,201
+<   whiptail --infobox "Resized root filesystem. Rebooting in 5 seconds..." 20 60
+<   sleep 5
+---
+>   whiptail --infobox "Resized root filesystem. Rebooting in 1 second..." 20 60
+>   sleep 1
