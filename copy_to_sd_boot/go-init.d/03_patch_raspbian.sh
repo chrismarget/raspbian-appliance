@@ -26,9 +26,6 @@ error () {
 PATCHDIR=$(dirname $0)/patch.d
 TARGETLIST=${PATCHDIR}/targets.txt
 
-ls -l $PATCHDIR
-sleep 3
-
 for TARGET in $(cat $TARGETLIST)
 do
   SUM=$(md5sum $TARGET | awk '{print $1}')
