@@ -1,7 +1,7 @@
 #!/bin/bash
 
 error() {
-  echo "error: $1"
+  >&2 echo "error: $1"
   exit 1
 }
 
@@ -37,6 +37,7 @@ wait_for_mount () {
     sleep .1
     ((tries=$tries-1))
   done
+  [ $tries -eq 0 ] && >&2 echo "wait_for_mount $1 timed out"
   [ $tries -eq 0 ] && return 1
   return 0
 }
@@ -107,7 +108,7 @@ do_checksum () {
   esac
   
   SUM=$(cut -d ' ' -f 1 $SUM_FILE)
-  echo doing checksum $IMG_FILE $SUM_FILE
+  >&2 echo doing checksum $IMG_FILE $SUM_FILE
   echo "$SUM  $IMG_FILE" | shasum -a $alg -c -
   return $?
 }
@@ -187,7 +188,7 @@ get_yes_no () {
 
 write_image () {
   diskutil umountDisk force $2
-  unzip -p $1 | dd obs=512k of=$2
+  unzip -p $1 | dd ibs=512 obs=512k of=$2
   return $?
 }
 
@@ -231,13 +232,16 @@ add_partitions () {
   # Save the MBR ID because OSX fdisk will zero it
   MBR_ID=$(dd if=$RAWDEV bs=1 skip=440 count=4)
   
-  # repartition, fix the MBR ID
+  # repartition
   diskutil umountDisk force $RAWDEV
   echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $RAWDEV
-  wait_for_mount ${RAWDEV}s1 # going to happen anyway, avoid the race condition
+  wait_for_mount ${RAWDEV}s1 || error "partition 1 didn't re-mount after call to fdisk"
+
+  # fix MBR ID
   diskutil umountDisk force $RAWDEV
   echo -n $MBR_ID | sudo dd of=$RAWDEV bs=1 seek=440
-  wait_for_mount ${RAWDEV}s1 # going to happen anyway, avoid the race condition
+  wait_for_mount ${RAWDEV}s1 || error "partition 1 didn't re-mount after fixing MBR ID"
+
   diskutil umountDisk force $RAWDEV
 }
 
