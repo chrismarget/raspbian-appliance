@@ -308,7 +308,7 @@ main () {
 
   # Build the go-init binary
   DIR=$(dirname $0)/copy_to_sd_boot
-  GOOS=linux GOARCH=arm GOARM=5 go build -o ${DIR}/go-init go-init/main.go
+  GOOS=linux GOARCH=arm GOARM=5 go build -i -o ${DIR}/go-init go-init/main.go
 
   # run the post-build modules
   do_run_parts $(dirname $0)/build.d
