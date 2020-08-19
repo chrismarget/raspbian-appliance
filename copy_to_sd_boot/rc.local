@@ -1,0 +1,6 @@
+#!/bin/sh
+
+for f in /boot/rc.local.d/*.sh
+do
+  $f
+done
