@@ -14,3 +14,4 @@ then
   AKF="${PROJECT_DIR}/authorized_keys"
   [ -f "$AKF" ] && cp "$AKF" "${BOOT_MNT}"
 fi
+exit 0
