@@ -26,41 +26,44 @@ pi_pkg_mp="/opt/${P3_LABEL}"
 pi_pkg_dir="${pi_pkg_mp}/$pkg_dir"
 
 # loop line-by-line over $pkg_list
-while read line
-do
-  set $line
-
-  # ignore lines containing more than two "words"
-  if [ $# -ne 2 ]
-  then
-    continue
-  fi
-
-  hash=$1
-  link=$2
-
-  # ensure sum portion contains only valid characters
-  if [[ ! $hash =~ ^[0-9a-fA-F]*$ ]]
-  then
-    continue
-  fi
-
-  # sha1/sha2 produce sums of specific lengths. ignore others.
-  case ${#hash} in
-    40) ;;
-    64) ;;
-    96) ;;
-    129) ;;
-    *) continue ;;
-  esac
-
-  # Fetch the file if we don't already have it.
-  file="${cache_dir}/$(basename $link)"
-  [ -f "$file" ] || (echo -e "\nFeching $link..."; curl -o "$file" "$link")
-
-  echo -n "Checking $file... "
-  shasum -c - <<< "$hash  $file" && cp $file $build_pkg_dir && packages_exist="y"
-done <<< "$([ -f $pkg_list ] && cat $pkg_list)"
+if [ -f $pkg_list ]
+then
+  while read line
+  do
+    set $line
+  
+    # ignore lines containing more than two "words"
+    if [ $# -ne 2 ]
+    then
+      continue
+    fi
+  
+    hash=$1
+    link=$2
+  
+    # ensure sum portion contains only valid characters
+    if [[ ! $hash =~ ^[0-9a-fA-F]*$ ]]
+    then
+      continue
+    fi
+  
+    # sha1/sha2 produce sums of specific lengths. ignore others.
+    case ${#hash} in
+      40) ;;
+      64) ;;
+      96) ;;
+      129) ;;
+      *) continue ;;
+    esac
+  
+    # Fetch the file if we don't already have it.
+    file="${cache_dir}/$(basename $link)"
+    [ -f "$file" ] || (echo -e "\nFeching $link..."; curl -o "$file" "$link")
+  
+    echo -n "Checking $file... "
+    shasum -c - <<< "$hash  $file" && cp $file $build_pkg_dir && packages_exist="y"
+  done <<< "$(cat $pkg_list)"
+fi
 
 # write a self-destructing startup script to the pi
 if [ -n "$packages_exist" ]
