@@ -6,3 +6,4 @@
 [ -z "$PROJECT_DIR" ] && error "project dir unknown"
 
 [ -f "${PROJECT_DIR}/sync" ] && cp "${PROJECT_DIR}/sync" "$BOOT_MNT"
+exit 0
