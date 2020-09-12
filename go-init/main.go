@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 )
 
 const (
@@ -100,7 +101,7 @@ func mountFileSystems() error {
 		return err
 	}
 
-    return nil
+	return nil
 }
 
 func runParts(dir string) error {
@@ -125,6 +126,7 @@ func runParts(dir string) error {
 		err = cmd.Run()
 		if err != nil {
 			log.Printf("%s produced an error.\n", s)
+			time.Sleep(10 * time.Second)
 			return err
 		}
 	}

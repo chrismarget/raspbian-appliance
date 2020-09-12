@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 error() {
   >&2 echo "error: $1"
@@ -18,14 +18,14 @@ fetch_files () {
   if [ -z "$IMAGE" ] && [ -n "$IMAGE_URL" ]
   then
     local IMAGE_FILE="${CACHE_DIR}/$(basename $IMAGE_URL)"
-    [ -e "$IMAGE_FILE" ] || curl -o "$IMAGE_FILE" "$IMAGE_URL" || error "downloading $IMAGE_URL"
+    [ -e "$IMAGE_FILE" ] || (echo -e "\nFetching $IMAGE_URL" && curl -o "$IMAGE_FILE" "$IMAGE_URL") || error "downloading $IMAGE_URL"
     IMAGE=$IMAGE_FILE
   fi
 
   if [ -z "$CKSUM" ] && [ -n "$CKSUM_URL" ]
   then
     local CKSUM_FILE="${CACHE_DIR}/$(basename $CKSUM_URL)"
-    [ -e "$CKSUM_FILE" ] || curl -o "$CKSUM_FILE" "$CKSUM_URL" || error "downloading $CKSUM_URL"
+    [ -e "$CKSUM_FILE" ] || (echo -e "\nFetching $CKSUM_URL" && curl -o "$CKSUM_FILE" "$CKSUM_URL") || error "downloading $CKSUM_URL"
     CKSUM=$CKSUM_FILE
   fi
 }
@@ -75,11 +75,14 @@ check_params () {
   [ -z "$IMAGE" ] && error "Raspbian image not specified"
   [ $P3SIZE -eq 0 ] && [ -n "$P3LABEL" ] && error "partition 3 label specified for zero-length filesystem"
   [ $P4SIZE -eq 0 ] && [ -n "$P4LABEL" ] && error "partition 4 label specified for zero-length filesystem"
+  [ $P3SIZE -gt 0 ] && [ -z "$P3LABEL" ] && error "partition 3 size specified with empty label"
+  [ $P4SIZE -gt 0 ] && [ -z "$P4LABEL" ] && error "partition 4 size specified with empty label"
   ([ -z "$P3LABEL" ] || check_dos_8.3 $P3LABEL) || error "label $P3LABEL must be DOS 8.3 format"
   ([ -z "$P4LABEL" ] || check_dos_8.3 $P4LABEL) || error "label $P4LABEL must be DOS 8.3 format"
   [ "$P3LABEL" == "$P4LABEL" ] && [ -n "$P3LABEL" ] && error "don't use the same filesystem label twice"
   [ "$(echo $P3LABEL | tr 'A-Z' 'a-z')" == "boot" ] && error "don't name a filesystem 'boot'"
   [ "$(echo $P4LABEL | tr 'A-Z' 'a-z')" == "boot" ] && error "don't name a filesystem 'boot'"
+  return 0
 }
 
 check_dos_8.3 () {
@@ -108,7 +111,7 @@ do_checksum () {
   esac
   
   SUM=$(cut -d ' ' -f 1 $SUM_FILE)
-  >&2 echo doing checksum $IMG_FILE $SUM_FILE
+  echo -n "Checking $IMG_FILE... "
   echo "$SUM  $IMG_FILE" | shasum -a $alg -c -
   return $?
 }
@@ -133,7 +136,7 @@ get_device_name () {
 
     if [ ${#DISKS[@]} -eq 0 ]
     then
-      error "Cannot find disks"
+      error "Cannot find any SD cards"
     fi
 
     if [ ${#DISKS[@]} -gt 1 ]
@@ -187,7 +190,7 @@ get_yes_no () {
 }
 
 write_image () {
-  diskutil umountDisk force $2
+  out=$(diskutil umountDisk force $2) || error "$out"
   unzip -p $1 | dd ibs=512 obs=512k of=$2
   return $?
 }
@@ -215,7 +218,12 @@ add_partitions () {
   is_digits $P4SIZE || error "partition 4 size: \"$P4SIZE\" must be numeric"
 
   # Parse the current disk layout.
-  IFS=$'\n' read -d '' -r -a PARTS < <(fdisk -d $RAWDEV)
+  PARTS=()
+  while read PART
+  do
+    PARTS+=("$PART")
+  done < <(fdisk -d $RAWDEV)
+
   TOTALBLOCKS=$(fdisk $RAWDEV | grep $RAWDEV | sed -E 's/^.*\[([0-9]+).*$/\1/')
   LASTUSED=$(echo ${PARTS[*]} | tr ' ' '\n' | awk -F, '{print $2}' | sort -n | tail -1)
 
@@ -230,19 +238,19 @@ add_partitions () {
   [ $P4SIZE -gt 0 ] && PARTS[3]=$P4START,$P4SIZE,0C,-,0,0,0,0,0,0
 
   # Save the MBR ID because OSX fdisk will zero it
-  MBR_ID=$(dd if=$RAWDEV bs=1 skip=440 count=4)
+  MBR_ID=$(dd if=$RAWDEV bs=1 skip=440 count=4 2>/dev/null)
   
   # repartition
-  diskutil umountDisk force $RAWDEV
-  echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $RAWDEV
+  out=$(diskutil umountDisk force $RAWDEV) || error "$out"
+  echo ${PARTS[*]} | tr ' ' '\n' | fdisk -yr $RAWDEV 2>/dev/null
   wait_for_mount ${RAWDEV}s1 || error "partition 1 didn't re-mount after call to fdisk"
 
   # fix MBR ID
-  diskutil umountDisk force $RAWDEV
-  echo -n $MBR_ID | sudo dd of=$RAWDEV bs=1 seek=440
+  out=$(diskutil umountDisk force $RAWDEV) || error "$out"
+  echo -n $MBR_ID | sudo dd of=$RAWDEV bs=1 seek=440 2>/dev/null
   wait_for_mount ${RAWDEV}s1 || error "partition 1 didn't re-mount after fixing MBR ID"
 
-  diskutil umountDisk force $RAWDEV
+  out=$(diskutil umountDisk force $RAWDEV) || error "$out"
 }
 
 mkfs () {
@@ -254,12 +262,13 @@ mkfs () {
 
 do_run_parts () {
   export PROJECT_DIR=$(dirname $0)
-  export BOOT_MNT
-  [ $P3SIZE -gt 0 ] && export P3_MNT=$(get_mount_point ${BLK_DEV}s3)
-  [ $P4SIZE -gt 0 ] && export P4_MNT=$(get_mount_point ${BLK_DEV}s4)
+  export BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
+  [ $P3SIZE -gt 0 ] && export P3_MNT=$(get_mount_point ${BLK_DEV}s3) && export P3_LABEL=$P3LABEL
+  [ $P4SIZE -gt 0 ] && export P4_MNT=$(get_mount_point ${BLK_DEV}s4) && export P4_LABEL=$P4LABEL
 
   for i in ${1}/*sh
   do
+    echo ${i}...
     [ -e $i ] && $i
   done
 }
@@ -288,29 +297,31 @@ main () {
   [ -n "$CKSUM" ] && (do_checksum $IMAGE $CKSUM || error "checksum failure")
 
   # Write the image to the SD card
+  echo "Writing $IMAGE to SD card..."
   write_image $IMAGE $RAW_DEV || error "writing image to sd card"
   wait_for_mount ${BLK_DEV}s1
 
   # Repartition
+  ([ $P3SIZE -gt 0 ] || [ $P4SIZE -gt 0 ]) && echo "Adding extra partition(s) to SD card..."
   add_partitions "$P3SIZE" "$P4SIZE" "$BLK_DEV"
 
   # Create new filessystems as necessary
+  ([ $P3SIZE -gt 0 ] || [ $P4SIZE -gt 0 ]) && echo "Writing filesystems to new partition(s)..."
   [ $P3SIZE -gt 0 ] && mkfs ${RAW_DEV}s3 $P3LABEL
   [ $P4SIZE -gt 0 ] && mkfs ${RAW_DEV}s4 $P4LABEL
 
   # Remount everything (straggler filesystems)
-  diskutil umountDisk force $BSD_DEV
-  diskutil mountDisk $BSD_DEV
-
-  # The /boot filesystem should be automatically mounted by OSX. Find it.
-  BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
-  [ -n "$BOOT_MNT"  ] || echo "${BLK_DEV}s1 device not mounted after imaging"
+  diskutil mount ${BSD_DEV}s1
+  [ $P3SIZE -gt 0 ] && diskutil mount ${BSD_DEV}s3
+  [ $P4SIZE -gt 0 ] && diskutil mount ${BSD_DEV}s4
 
   # Build the go-init binary
-  DIR=$(dirname $0)/copy_to_sd_boot
-  GOOS=linux GOARCH=arm GOARM=5 go build -o ${DIR}/go-init go-init/main.go
+  BINDIR="$(cd "$(dirname "$0")"; pwd)/copy_to_sd_boot"
+  mkdir -p $BINDIR
+  (cd go-init; GOOS=linux GOARCH=arm GOARM=5 go build -i -o ${BINDIR}/go-init main.go)
 
   # run the post-build modules
+  echo "Running scripts in $(dirname $0)/build.d/"
   do_run_parts $(dirname $0)/build.d
 }
 
