@@ -27,7 +27,6 @@ set_appliance_dir () {
 read_config () {
   local CFG=${0/.sh/.cfg}
   CFG="$PROJECT_DIR/$(basename $CFG)"
-  echo CFG is $CFG 
   if [ -e $CFG ]
   then
     . $CFG
