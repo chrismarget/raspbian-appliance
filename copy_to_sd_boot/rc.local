@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for f in /boot/rc.local.d/*.sh
+for f in $(ls /boot/rc.local.d/*.sh 2>/dev/null)
 do
   $f
 done
