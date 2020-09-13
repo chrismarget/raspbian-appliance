@@ -6,18 +6,26 @@ error() {
 }
 
 set_project_dir () {
-  if [ "$(ls -i ${APPLIANCE_DIR}/../$(readlink "$APPLIANCE_DIR/../$(basename $0)") | cut -d ' ' -f 1)" == "$(ls -i $(readlink $0) | cut -d ' ' -f 1)" ]
+  # note the Real Build Script, Linked Build Script, and their inode numbers
+  local RBS="$APPLIANCE_DIR/$(basename $0)"
+  local LBS=$(dirname $RBS)/../$(basename $0)
+  local RBSI=$(ls -i "$RBS" | cut -d ' ' -f 1)
+
+  if [ -f "$LBS" ]
   then
-    PROEJCT_DIR=$(cd "$APPLIANCE_DIR/.."; pwd)
+    local LBSI=$(ls -i "$(readlink $LBS)" | cut -d ' ' -f 1)
   else
-    PROJECT_DIR=$APPLIANCE_DIR
+    local LBSI="x"
   fi
-  local BASE_DIR="$(cd "$(dirname "$0")"; pwd)"
-  if [ -d "${BASE_DIR}/raspbian-appliance" ]
+
+  # Do we have an a symlinked script one level up from the appliance dir?
+  if [ "$RBSI" == "$LBSI" ]
   then
-    export PROJECT_DIR="${BASE_DIR}/raspbian-appliance"
+    # Yes. Project dir is one back from appliance dir.
+    export PROJECT_DIR=$(cd "$APPLIANCE_DIR/.."; pwd)
   else
-    export PROJECT_DIR="$BASE_DIR"
+    # No. Project dir = appliacne dir.
+    export PROJECT_DIR=$APPLIANCE_DIR
   fi
 }
 
@@ -26,8 +34,9 @@ set_appliance_dir () {
 }
 
 read_config () {
-  local CFG=${0/.sh/.cfg}
-  CFG="$PROJECT_DIR/$(basename $CFG)"
+  local CFG=$(basename "$0")
+  local CFG=${CFG/.sh/.cfg}
+  CFG="$APPLIANCE_DIR/$(basename $CFG)"
   if [ -e $CFG ]
   then
     . $CFG
@@ -35,8 +44,9 @@ read_config () {
 }
 
 fetch_files () {
-  CACHE_DIR="${0/.sh/.cache}"
-  CACHE_DIR="$(dirname $CACHE_DIR)/.$(basename $CACHE_DIR)"
+  local CACHE_DIR=${0/.sh/.cache}
+  CACHE_DIR="$PROJECT_DIR/.$(basename $CACHE_DIR)"
+
   mkdir -p "$CACHE_DIR"
 
   if [ -z "$IMAGE" ] && [ -n "$IMAGE_URL" ]
