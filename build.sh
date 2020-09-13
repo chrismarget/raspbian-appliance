@@ -6,6 +6,13 @@ error() {
 }
 
 set_project_dir () {
+  if [ "$(ls -i ${APPLIANCE_DIR}/../$(readlink "$APPLIANCE_DIR/../$(basename $0)") | cut -d ' ' -f 1)" == "$(ls -i $(readlink $0) | cut -d ' ' -f 1)" 
+]
+  then
+    PROEJCT_DIR=$(cd "$APPLIANCE_DIR/.."; pwd)
+  else
+    PROJECT_DIR=$APPLIANCE_DIR
+  fi
   local BASE_DIR="$(cd "$(dirname "$0")"; pwd)"
   if [ -d "${BASE_DIR}/raspbian-appliance" ]
   then
@@ -16,12 +23,7 @@ set_project_dir () {
 }
 
 set_appliance_dir () {
-  if [ -d "${PROJECT_DIR}/raspbian-appliance" ]
-  then
-    export APPLIANCE_DIR=${PROJECT_DIR}/raspbian-appliance
-  else
-    export APPLIANCE_DIR=${PROJECT_DIR}
-  fi
+  APPLIANCE_DIR=$(cd $(dirname $(readlink $0)); pwd)
 }
 
 read_config () {
@@ -298,8 +300,8 @@ do_run_parts () {
 
 main () {
   # Support for running as a submodule inside another project
-  set_project_dir
   set_appliance_dir
+  set_project_dir
 
   # Read CLI options
   get_options $@
@@ -347,8 +349,8 @@ main () {
   (cd "${APPLIANCE_DIR}/go-init"; GOOS=linux GOARCH=arm GOARM=5 go build -i -o ${BINDIR}/go-init main.go)
 
   # run the post-build modules
-  echo "Running scripts in $(dirname $0)/build.d/"
-  do_run_parts $(dirname $0)/build.d
+  echo "Running scripts in $APPLIANCE_DIR/build.d/"
+  do_run_parts "${APPLIANCE_DIR}/build.d"
 }
 
 main $@
