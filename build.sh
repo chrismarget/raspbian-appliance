@@ -15,6 +15,15 @@ set_project_dir () {
   fi
 }
 
+set_appliance_dir () {
+  if [ -d "${PROJECT_DIR}/raspbian-appliance" ]
+  then
+    export APPLIANCE_DIR=${PROJECT_DIR}/raspbian-appliance
+  else
+    export APPLIANCE_DIR=${PROJECT_DIR}
+  fi
+}
+
 read_config () {
   local CFG=${0/.sh/.cfg}
   CFG="$PROJECT_DIR/$(basename $CFG)"
@@ -291,6 +300,7 @@ do_run_parts () {
 main () {
   # Support for running as a submodule inside another project
   set_project_dir
+  set_appliance_dir
 
   # Read CLI options
   get_options $@
@@ -333,9 +343,9 @@ main () {
   [ $P4SIZE -gt 0 ] && diskutil mount ${BSD_DEV}s4
 
   # Build the go-init binary
-  BINDIR="${PROJECT_DIR}/copy_to_sd_boot"
-  mkdir -p $BINDIR
-  (cd go-init; GOOS=linux GOARCH=arm GOARM=5 go build -i -o ${BINDIR}/go-init main.go)
+  BINDIR="${APPLIANCE_DIR}/copy_to_sd_boot"
+  mkdir -p "$BINDIR"
+  (cd "${APPLIANCE_DIR}/go-init"; GOOS=linux GOARCH=arm GOARM=5 go build -i -o ${BINDIR}/go-init main.go)
 
   # run the post-build modules
   echo "Running scripts in $(dirname $0)/build.d/"
