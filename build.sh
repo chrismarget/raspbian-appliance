@@ -5,9 +5,24 @@ error() {
   exit 1
 }
 
+set_project_dir () {
+  local BASE_DIR="$(cd "$(dirname "$0")"; pwd)"
+  if [ -d "${BASE_DIR}/raspbian-appliance" ]
+  then
+    export PROJECT_DIR="${BASE_DIR}/raspbian-appliance"
+  else
+    export PROJECT_DIR="$BASE_DIR"
+  fi
+}
+
 read_config () {
-  local CFG="${0/.sh/.cfg}"
-  [ -e $CFG ] && . $CFG
+  local CFG=${0/.sh/.cfg}
+  CFG="$PROJECT_DIR/$(basename $CFG)"
+  echo CFG is $CFG 
+  if [ -e $CFG ]
+  then
+    . $CFG
+  fi
 }
 
 fetch_files () {
@@ -261,7 +276,6 @@ mkfs () {
 }
 
 do_run_parts () {
-  export PROJECT_DIR=$(dirname $0)
   export BOOT_MNT=$(get_mount_point ${BLK_DEV}s1)
   [ $P3SIZE -gt 0 ] && export P3_MNT=$(get_mount_point ${BLK_DEV}s3) && export P3_LABEL=$P3LABEL
   [ $P4SIZE -gt 0 ] && export P4_MNT=$(get_mount_point ${BLK_DEV}s4) && export P4_LABEL=$P4LABEL
@@ -275,6 +289,9 @@ do_run_parts () {
 
 
 main () {
+  # Support for running as a submodule inside another project
+  set_project_dir
+
   # Read CLI options
   get_options $@
 
@@ -316,7 +333,7 @@ main () {
   [ $P4SIZE -gt 0 ] && diskutil mount ${BSD_DEV}s4
 
   # Build the go-init binary
-  BINDIR="$(cd "$(dirname "$0")"; pwd)/copy_to_sd_boot"
+  BINDIR="${PROJECT_DIR}/copy_to_sd_boot"
   mkdir -p $BINDIR
   (cd go-init; GOOS=linux GOARCH=arm GOARM=5 go build -i -o ${BINDIR}/go-init main.go)
 
@@ -326,4 +343,5 @@ main () {
 }
 
 main $@
+
 diskutil umountDisk force $BSD_DEV
