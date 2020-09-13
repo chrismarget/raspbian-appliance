@@ -6,8 +6,7 @@ error() {
 }
 
 set_project_dir () {
-  if [ "$(ls -i ${APPLIANCE_DIR}/../$(readlink "$APPLIANCE_DIR/../$(basename $0)") | cut -d ' ' -f 1)" == "$(ls -i $(readlink $0) | cut -d ' ' -f 1)" 
-]
+  if [ "$(ls -i ${APPLIANCE_DIR}/../$(readlink "$APPLIANCE_DIR/../$(basename $0)") | cut -d ' ' -f 1)" == "$(ls -i $(readlink $0) | cut -d ' ' -f 1)" ]
   then
     PROEJCT_DIR=$(cd "$APPLIANCE_DIR/.."; pwd)
   else
