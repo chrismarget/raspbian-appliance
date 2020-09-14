@@ -5,75 +5,18 @@ error() {
   exit 1
 }
 
-set_project_dir () {
-  # note the Real Build Script, Linked Build Script, and their inode numbers
-  local RBS="$APPLIANCE_DIR/$(basename $0)"
-  local LBS=$(dirname $RBS)/../$(basename $0)
-  local RBSI=$(ls -i "$RBS" | cut -d ' ' -f 1)
-
-  if [ -f "$LBS" ]
-  then
-    local LBSI=$(ls -i "$(readlink $LBS)" | cut -d ' ' -f 1)
-  else
-    local LBSI="x"
-  fi
-
-  # Do we have an a symlinked script one level up from the appliance dir?
-  if [ "$RBSI" == "$LBSI" ]
-  then
-    # Yes. Project dir is one back from appliance dir.
-    export PROJECT_DIR=$(cd "$APPLIANCE_DIR/.."; pwd)
-  else
-    # No. Project dir = appliacne dir.
-    export PROJECT_DIR=$APPLIANCE_DIR
-  fi
-}
-
 set_appliance_dir () {
-  APPLIANCE_DIR=$(cd $(dirname $(readlink $0)); pwd)
+  APPLIANCE_DIR="$(dirname $0)"
+  export APPLIANCE_DIR="$(cd $PROJECT_DIR; pwd)"
 }
 
-read_config () {
-  local CFG=$(basename "$0")
-  local CFG=${CFG/.sh/.cfg}
-  CFG="$APPLIANCE_DIR/$(basename $CFG)"
-  if [ -e $CFG ]
+set_cache_dir () {
+  if [ -z "$CACHE_DIR" ]
   then
-    . $CFG
+    CACHE_DIR=$(basename "$0")
+    CACHE_DIR=${CACHE_DIR/.sh/}.cache
+    export CACHE_DIR="$APPLIANCE_DIR/$CACHE_DIR"
   fi
-}
-
-fetch_files () {
-  local CACHE_DIR=${0/.sh/.cache}
-  CACHE_DIR="$PROJECT_DIR/.$(basename $CACHE_DIR)"
-
-  mkdir -p "$CACHE_DIR"
-
-  if [ -z "$IMAGE" ] && [ -n "$IMAGE_URL" ]
-  then
-    local IMAGE_FILE="${CACHE_DIR}/$(basename $IMAGE_URL)"
-    [ -e "$IMAGE_FILE" ] || (echo -e "\nFetching $IMAGE_URL" && curl -o "$IMAGE_FILE" "$IMAGE_URL") || error "downloading $IMAGE_URL"
-    IMAGE=$IMAGE_FILE
-  fi
-
-  if [ -z "$CKSUM" ] && [ -n "$CKSUM_URL" ]
-  then
-    local CKSUM_FILE="${CACHE_DIR}/$(basename $CKSUM_URL)"
-    [ -e "$CKSUM_FILE" ] || (echo -e "\nFetching $CKSUM_URL" && curl -o "$CKSUM_FILE" "$CKSUM_URL") || error "downloading $CKSUM_URL"
-    CKSUM=$CKSUM_FILE
-  fi
-}
-
-wait_for_mount () {
-  tries=100
-  while [ $tries -gt 0 ] && ! mount | egrep -q "^[^ ]*$1 "
-  do
-    sleep .1
-    ((tries=$tries-1))
-  done
-  [ $tries -eq 0 ] && >&2 echo "wait_for_mount $1 timed out"
-  [ $tries -eq 0 ] && return 1
-  return 0
 }
 
 get_options() {
@@ -103,6 +46,52 @@ get_options() {
   done
   export P3SIZE=${P3SIZE:-0}
   export P4SIZE=${P4SIZE:-0}
+}
+
+read_config () {
+  local CFG=$(basename "$0")
+  CFG=${CFG/.sh/}.cfg
+  CFG="$APPLIANCE_DIR/$(basename $CFG)"
+
+  if [ -e ${APPLIANCE_DIR}/$CFG ]
+  then
+    . ${APPLIANCE_DIR}/$CFG
+  fi
+
+  if [ -n "$PROJECT_DIR" ] && [ -e "${PROJECT_DIR}/$CFG" ]
+  then
+    . "${PROJECT_DIR}/$CFG"
+  fi
+}
+
+fetch_files () {
+  mkdir -p "$CACHE_DIR"
+
+  if [ -z "$IMAGE" ] && [ -n "$IMAGE_URL" ]
+  then
+    local IMAGE_FILE="${CACHE_DIR}/$(basename $IMAGE_URL)"
+    [ -e "$IMAGE_FILE" ] || (echo -e "\nFetching $IMAGE_URL" && curl -o "$IMAGE_FILE" "$IMAGE_URL") || error "downloading $IMAGE_URL"
+    IMAGE=$IMAGE_FILE
+  fi
+
+  if [ -z "$CKSUM" ] && [ -n "$CKSUM_URL" ]
+  then
+    local CKSUM_FILE="${CACHE_DIR}/$(basename $CKSUM_URL)"
+    [ -e "$CKSUM_FILE" ] || (echo -e "\nFetching $CKSUM_URL" && curl -o "$CKSUM_FILE" "$CKSUM_URL") || error "downloading $CKSUM_URL"
+    CKSUM=$CKSUM_FILE
+  fi
+}
+
+wait_for_mount () {
+  tries=100
+  while [ $tries -gt 0 ] && ! mount | egrep -q "^[^ ]*$1 "
+  do
+    sleep .1
+    ((tries=$tries-1))
+  done
+  [ $tries -eq 0 ] && >&2 echo "wait_for_mount $1 timed out"
+  [ $tries -eq 0 ] && return 1
+  return 0
 }
 
 check_params () {
@@ -310,7 +299,7 @@ do_run_parts () {
 main () {
   # Support for running as a submodule inside another project
   set_appliance_dir
-  set_project_dir
+  set_cache_dir
 
   # Read CLI options
   get_options $@
@@ -360,6 +349,11 @@ main () {
   # run the post-build modules
   echo "Running scripts in $APPLIANCE_DIR/build.d/"
   do_run_parts "${APPLIANCE_DIR}/build.d"
+  if [ -z "$PROJECT_DIR" ] && [ -d "${PROJECT_DIR}/build.d" ]
+  then
+    echo "Running scripts in $PROJECT_DIR/build.d/"
+    do_run_parts "${PROJECT_DIR}/build.d"
+  fi
 }
 
 main $@
