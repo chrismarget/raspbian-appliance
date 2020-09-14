@@ -7,7 +7,7 @@ error() {
 
 set_appliance_dir () {
   APPLIANCE_DIR="$(dirname $0)"
-  export APPLIANCE_DIR="$(cd $PROJECT_DIR; pwd)"
+  export APPLIANCE_DIR="$(cd $APPLIANCE_DIR; pwd)"
 }
 
 set_cache_dir () {
@@ -51,11 +51,10 @@ get_options() {
 read_config () {
   local CFG=$(basename "$0")
   CFG=${CFG/.sh/}.cfg
-  CFG="$APPLIANCE_DIR/$(basename $CFG)"
 
-  if [ -e ${APPLIANCE_DIR}/$CFG ]
+  if [ -e "${APPLIANCE_DIR}/$CFG" ]
   then
-    . ${APPLIANCE_DIR}/$CFG
+    . "${APPLIANCE_DIR}/$CFG"
   fi
 
   if [ -n "$PROJECT_DIR" ] && [ -e "${PROJECT_DIR}/$CFG" ]
