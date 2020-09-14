@@ -15,7 +15,7 @@ set_cache_dir () {
   then
     CACHE_DIR=$(basename "$0")
     CACHE_DIR=${CACHE_DIR/.sh/}.cache
-    export CACHE_DIR="$APPLIANCE_DIR/$CACHE_DIR"
+    export CACHE_DIR="$APPLIANCE_DIR/.$CACHE_DIR"
   fi
 }
 
