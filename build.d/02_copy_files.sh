@@ -2,6 +2,7 @@
 
 . $(dirname $0)/functions
 
+[ -n "$PROJECT_DIR" ] || error "PROJECT_DIR unknown"
 [ -n "$BOOT_MNT" ] || error "boot partition mount point unknown"
 [ -d "$BOOT_MNT" ] || error "boot partition should be mounted, but isn't"
 
