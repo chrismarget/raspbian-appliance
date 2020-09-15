@@ -348,7 +348,7 @@ main () {
   # run the post-build modules
   echo "Running scripts in $APPLIANCE_DIR/build.d/"
   do_run_parts "${APPLIANCE_DIR}/build.d"
-  if [ -z "$PROJECT_DIR" ] && [ -d "${PROJECT_DIR}/build.d" ]
+  if [ -n "$PROJECT_DIR" ] && [ -d "${PROJECT_DIR}/build.d" ]
   then
     echo "Running scripts in $PROJECT_DIR/build.d/"
     do_run_parts "${PROJECT_DIR}/build.d"
