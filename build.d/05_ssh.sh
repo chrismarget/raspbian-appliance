@@ -1,17 +1,18 @@
-#!/bin/sh
+#!/bin/sh -e
 
 . $(dirname $0)/functions
 
-[ -n "$BOOT_MNT" ] || error "boot mount unknown"
-[ -n "$PROJECT_DIR" ] || error "appliance dir unknown"
+if [ -z "$BOOT_MNT" ]
+then
+  error "boot mount unknown"
+fi
 
-if [ -f "${PROJECT_DIR}/ssh" ] ||\
-   [ -f "${PROJECT_DIR}/authorized_keys" ] ||\
-   [ -f "${PROJECT_DIR}/copy_to_sd_boot/ssh" ] ||\
-   [ -f "${PROJECT_DIR}/copy_to_sd_boot/authorized_keys" ]
+if [ ! -d "$BOOT_MNT" ]
+then
+  error "boot mount not found"
+fi
+
+if [ -f "${BOOT_MNT}/authorized keys" ] && [ ! -f "${BOOT_MNT}/ssh" ]
 then
   touch "${BOOT_MNT}/ssh"
-  AKF="${PROJECT_DIR}/authorized_keys"
-  [ -f "$AKF" ] && cp "$AKF" "${BOOT_MNT}"
 fi
-exit 0
