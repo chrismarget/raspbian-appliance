@@ -11,7 +11,7 @@ LOCK_FILE="${PROJECT_DIR}/user.lock"
 if [ -f "$LOCK_FILE" ]
 then
   cp "$LOCK_FILE" "$BOOT_MNT"
-  START_SCRIPT="${BOOT_MNT}/rc.local.d/01_lock_user.sh"
+  START_SCRIPT="${BOOT_MNT}/rc.local.d/10_lock_user.sh"
   mkdir -p "$(dirname $START_SCRIPT)"
   cat > "$START_SCRIPT" << EOF
 #!/bin/sh

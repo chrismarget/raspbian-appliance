@@ -71,7 +71,7 @@ fi
 # write a self-destructing startup script to the pi
 if [ -n "$packages_exist" ]
 then
-  start_script="${BOOT_MNT}/rc.local.d/01_pkg_install.sh"
+  start_script="${BOOT_MNT}/rc.local.d/11_pkg_install.sh"
   echo "#!/bin/sh" > $start_script
   echo "dpkg -i ${pi_pkg_dir}/*" >> $start_script
   echo "rm \$0" >> $start_script
