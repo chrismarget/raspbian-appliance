@@ -11,9 +11,12 @@
 
 pkg_list=${PROJECT_DIR}/packages.txt
 
-# we store the downloaded packages in cache_dir:
-cache_dir="${PROJECT_DIR}/.build.cache"
-mkdir -p "$cache_dir"
+# we store the downloaded packages in CACHE_DIR:
+if [ -z "$CACHE_DIR" ]
+then
+  CACHE_DIR="${PROJECT_DIR}/.build.cache"
+fi
+mkdir -p "$CACHE_DIR"
 
 # we put the downloaded packages on the SD card here:
 pkg_dir="pkgs"
@@ -57,7 +60,7 @@ then
     esac
   
     # Fetch the file if we don't already have it.
-    file="${cache_dir}/$(basename $link)"
+    file="${CACHE_DIR}/$(basename $link)"
     [ -f "$file" ] || (echo -e "\nFeching $link..."; curl -o "$file" "$link")
   
     echo -n "Checking $file... "
