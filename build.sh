@@ -287,10 +287,13 @@ do_run_parts () {
   [ $P3SIZE -gt 0 ] && export P3_MNT=$(get_mount_point ${BLK_DEV}s3) && export P3_LABEL=$P3LABEL
   [ $P4SIZE -gt 0 ] && export P4_MNT=$(get_mount_point ${BLK_DEV}s4) && export P4_LABEL=$P4LABEL
 
-  for i in ${1}/*sh
+  ls "$1" | while read file
   do
-    echo ${i}...
-    [ -e $i ] && $i
+    if [[ "$file" == *".sh" ]]
+    then
+      echo ${1}/${file}...
+      [ -e "${1}/$file" ] && "${1}/$file"
+    fi
   done
 }
 
