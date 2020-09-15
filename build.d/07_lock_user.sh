@@ -12,7 +12,7 @@ if [ -f "$LOCK_FILE" ]
 then
   cp "$LOCK_FILE" "$BOOT_MNT"
   START_SCRIPT="${BOOT_MNT}/rc.local.d/01_lock_user.sh"
-  mkdir -p "$(dirname \"$START_SCRIPT\")"
+  mkdir -p "$(dirname $START_SCRIPT)"
   cat > "$START_SCRIPT" << EOF
 #!/bin/sh
 cat /boot/user.lock | while read line
