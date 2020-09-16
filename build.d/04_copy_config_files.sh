@@ -8,6 +8,7 @@ files+=('authorized_keys')
 files+=('user.lock')
 files+=('sync')
 files+=('dhcpcd.conf')
+files+=('localization')
 
 . $(dirname $0)/functions
 
