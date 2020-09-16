@@ -12,7 +12,7 @@ then
   error "boot mount not found"
 fi
 
-if [ -f "${BOOT_MNT}/authorized keys" ] && [ ! -f "${BOOT_MNT}/ssh" ]
+if [ -f "${BOOT_MNT}/authorized_keys" ] && [ ! -f "${BOOT_MNT}/ssh" ]
 then
   touch "${BOOT_MNT}/ssh"
 fi
